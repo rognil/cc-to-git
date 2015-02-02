@@ -5,7 +5,6 @@ from git import Git
 from clearcase import ClearCase
 
 
-
 class Activity:
 
     config = ConfigParser()
@@ -42,7 +41,7 @@ class Activity:
 class Modify(Activity):
 
     def __init__(self):
-        Activity.__init__()
+        Activity.__init__(self)
 
     def stage(self, transaction):
         transaction.stage(self.file_name)
@@ -54,7 +53,7 @@ class Modify(Activity):
 class Add(Activity):
 
     def __init__(self):
-        Activity.__init__()
+        Activity.__init__(self)
 
     def stage(self, transaction):
         self.stage_dirs(transaction)
@@ -71,7 +70,7 @@ class Add(Activity):
 class Delete(Activity):
 
     def __init__(self):
-        Activity.__init__()
+        Activity.__init__(self)
 
     def stage(self, transaction):
         transaction.stage_dir(dirname(self.file_name))

@@ -1,7 +1,9 @@
 """Reset hard to a specific changeset"""
 
-from common import *
+from git import Git
+
 
 def main(commit):
-    git_exec(['branch', '-f', CC_TAG, commit])
-    tag(CI_TAG, commit)
+    git = Git()
+    git.branch(git.cc_tag(), commit)
+    git.tag(git.ci_tag(), commit)

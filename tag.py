@@ -1,6 +1,9 @@
 """Tag a particular commit as gitcc start point"""
 
-from common import *
+from configuration import ConfigParser
+from git import Git
+
 
 def main(commit):
-    tag(CI_TAG, commit)
+    git = Git()
+    git.tag(ConfigParser.ci_tag(), commit)

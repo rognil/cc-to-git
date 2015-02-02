@@ -96,7 +96,7 @@ just-in-case someone wants to use it that way.
 
 Can also work with UCM, which requires the 'type' config to be set to 'UCM'.
 This is still a work in progress as I only recently switched to this at work.
-Note the the history is still retrieved via lshistory and not specifically from
+Note the history is still retrieved via lshistory and not specifically from
 any activity information. This is largely for convenience for me so I don't have
 to rewrite everything. Therefore things like 'recommended' baselines are ignored.
 I don't know if this will cause any major dramas or not.

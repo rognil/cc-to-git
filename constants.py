@@ -1,52 +1,69 @@
+__author__ = 'rognilse'
+
 import logging
 import sys
 import os
 
 
-def constants():
-    return GitCcDefaultConstants()
+class GitCcConstants:
 
-
-class GitCcDefaultConstants:
-    DEFAULT_LOGGER = "gitcc.log"
-    DEFAULT_LOGGER_LEVEL = logging.DEBUG
-    DEFAULT_ENCODING = "ISO8859-15"
-    DEBUG = 1
-    HISTORY_FILE = "lshistory.bak"
-    SIMULATE_CC = 1
-    SIMULATE_GIT = 0
-    ENABLE_HISTORY = 1
-    CYGWIN = sys.platform == 'cygwin'
-    FS = os.sep
-    if CYGWIN:
-        FS = '\\'
+    __default_logger = "gitcc.log"
+    __default_logger_level = logging.DEBUG
+    __default_encoding = "ISO8859-15"
+    __debug = 1
+    __history_file = "lshistory.bak"
+    __gitcc_file = '.gitcc'
+    __simulate_cc = 1
+    __simulate_git = 0
+    __enable_history = 1
+    __cygwin = sys.platform == 'cygwin'
+    __fs = os.sep
+    if __cygwin:
+        __fs = '\\'
 
     def __init__(self):
         pass
 
-    def logger_name(self):
-        return self.DEFAULT_LOGGER
+    @staticmethod
+    def logger_name():
+        return GitCcConstants.__default_logger
 
-    def logger_level(self):
-        return self.DEFAULT_LOGGER_LEVEL
+    @staticmethod
+    def gitcc_file():
+        return GitCcConstants.__gitcc_file
 
-    def encoding(self):
-        return self.DEFAULT_ENCODING
+    @staticmethod
+    def logger_level():
+        return GitCcConstants.__default_logger_level
 
-    def debug(self):
-        return self.DEBUG
+    @staticmethod
+    def encoding():
+        return GitCcConstants.__default_encoding
 
-    def cygwin(self):
-        return self.IS_CYGWIN
+    @staticmethod
+    def file_separator():
+        return GitCcConstants.__fs
 
-    def history_file(self):
-        return self.HISTORY_FILE
+    @staticmethod
+    def debug():
+        return GitCcConstants.__debug
 
-    def simulate_cc(self):
-        return self.SIMULATE_CC
+    @staticmethod
+    def cygwin():
+        return GitCcConstants.__cygwin
 
-    def simulate_git(self):
-        return self.SIMULATE_GIT
+    @staticmethod
+    def history_file():
+        return GitCcConstants.__history_file
 
-    def enable_history(self):
-        return self.ENABLE_HISTORY
+    @staticmethod
+    def simulate_cc():
+        return GitCcConstants.__simulate_cc
+
+    @staticmethod
+    def simulate_git():
+        return GitCcConstants.__simulate_git
+
+    @staticmethod
+    def enable_history():
+        return GitCcConstants.__enable_history

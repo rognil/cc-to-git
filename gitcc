@@ -1,20 +1,32 @@
 #!/usr/bin/env python
-import sys, inspect
+import os
+import sys
+import inspect
 from optparse import OptionParser
-import rebase, checkin, init, sync, reset, tag, update
+from gitcclogger import GitCcLogger
+from configuration import ConfigParser
+from constants import GitCcConstants
+from os.path import join
 
 commands = [
-    init, rebase, checkin, sync, reset, tag, update
+    'init', 'rebase', 'checkin', 'sync', 'reset', 'tag', 'update'
 ]
 
+
 def main():
+    directories = ConfigParser.git_dir().split(GitCcConstants.file_separator())[:-1]
+    GitCcLogger(join(GitCcConstants.file_separator().join(directories), GitCcConstants.logger_name()))
+
     args = sys.argv[1:]
     for cmd in commands:
-        if args and cmd.__name__ == args[0]:
+        if args and cmd == args[0]:
             return invoke(cmd, args)
     usage()
 
-def invoke(cmd, args):
+
+def invoke(cmd_name, args):
+
+    cmd = __import__(cmd_name)
     _args, _, _, defaults = inspect.getargspec(cmd.main)
     defaults = defaults if defaults else []
     diff = len(_args) - len(defaults)
@@ -26,7 +38,7 @@ def invoke(cmd, args):
             'help': cmd.ARGS[name],
             'dest': name,
         }
-        if default == False:
+        if not default:
             option['action'] = "store_true"
         name = name.replace('_', '-')
         parser.add_option('--' + name, **option)
@@ -37,10 +49,12 @@ def invoke(cmd, args):
         args.append(getattr(options, name))
     cmd.main(*args)
 
+
 def usage():
-    print('usage: gitcc COMMAND [ARGS]\n')
+    print('\nusage: gitcc COMMAND [ARGS]\n')
     width = 11
-    for cmd in commands:
+    for cmd_name in commands:
+        cmd = __import__(cmd_name)
         print('    %s %s' % (cmd.__name__.ljust(width), cmd.__doc__.split('\n')[0]))
     sys.exit(2)
 

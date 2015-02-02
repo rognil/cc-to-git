@@ -1,11 +1,17 @@
 """Update the git repository with Clearcase manually, ignoring history"""
 
-from common import *
 import sync, reset
 
+from clearcase import ClearCase
+from git import Git
+
+
 def main(message):
-    cc_exec(['update', '.'], errors=False)
+    git = Git()
+    clear_case = ClearCase()
+
+    clear_case.update('.')
     sync.main()
-    git_exec(['add', '.'])
-    git_exec(['commit', '-m', message])
+    git.add('.')
+    git.commit(message)
     reset.main('HEAD')

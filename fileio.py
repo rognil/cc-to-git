@@ -4,16 +4,10 @@ import os
 import logging
 logger = logging.getLogger(__name__)
 
-from encoding import Encoding
-import constants
-import configuration
-
 
 class IO():
     def __init__(self):
-        self.encoding = Encoding()
-        self.config = configuration.ConfigParser()
-        self.constants = constants.GitCcConstants()
+        pass
 
     @staticmethod
     def write(file_path, blob):

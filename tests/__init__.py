@@ -18,7 +18,7 @@ class TestCaseEx(unittest.TestCase):
             return check(cmd)
         def mockWrite(file, blob):
             self.assertEquals(check(file), blob)
-        common.popen = mockPopen
+        common.pipe = mockPopen
         common._write = mockWrite
         os.makedirs(common.CC_DIR)
     def tearDown(self):

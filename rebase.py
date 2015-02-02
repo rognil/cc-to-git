@@ -1,21 +1,29 @@
 """Rebase from Clearcase"""
 
-from os.path import join, dirname, exists, isdir
-import os, stat
-from common import *
-from datetime import datetime, timedelta
+from os.path import join, exists, isdir
+import os
+import stat
 from users import users, mailSuffix
 from fnmatch import fnmatch
-from clearcase import cc
-from cache import getCache, CCFile
 from re import search
+
+from clearcase import ClearCase
+from cache import Cache, CCFile, NoCache
+from git import Git
+from fileio import IO
+from configuration import ConfigParser
+from constants import GitCcConstants
+from encoding import Encoding
+
+import logging
+logger = logging.getLogger(__name__)
 
 """
 Things remaining:
 1. Renames with no content change. Tricky.
 """
 
-CC_LSH = ['lsh', '-fmt', '%o%m|%Nd|%u|%En|%Vn|'+cc.getCommentFmt()+'\\n', '-recurse']
+
 DELIM = '|'
 
 ARGS = {
@@ -25,96 +33,93 @@ ARGS = {
     'load': 'Loads the contents of a previously saved lshistory file',
 }
 
-cache = getCache()
 
 def main(stash=False, dry_run=False, lshistory=False, load=None):
-    validateCC()
+    config = ConfigParser()
+    git = Git()
+    clear_case = ClearCase()
+    io = IO()
+
+    if config.core('cache', True) == 'False':
+        cache = NoCache()
+    else:
+        cache = Cache(config.git_dir())
+
+    config.validate_cc()
     if not (stash or dry_run or lshistory):
-        checkPristine()
+        git.check_pristine()
 
-    cc_exec(["update"], errors=False)
+    clear_case.update()
 
-    since = getSince()
+    since = git.since_date(config.get('since'))
     cache.start()
     if load:
-        history = open(load, 'r').read().decode(ENCODING)
+        history = open(load, 'r').read().decode(Encoding.encoding())
     else:
-        cc.rebase()
-        history = getHistory(since)
-        write(join(GIT_DIR, '.git', 'lshistory.bak'), history.encode(ENCODING))
+        clear_case.rebase()
+        history = clear_case.fetch_history(since)
+        io.write(join(config.git_dir(), '.git', 'lshistory.bak'), history.encode(Encoding.encoding()))
+        history = open(join(config.git_dir(), '.git', 'lshistory.bak'), 'r').read().decode(Encoding.encoding())
+
     if lshistory:
         print(history)
     else:
-        cs = parseHistory(history)
-        cs = reversed(cs)
-        cs = mergeHistory(cs)
+        change_set = parse_history(cache, config, clear_case, git, history)
+        change_set = reversed(change_set)
+        change_set = merge_history(cache, clear_case, git, change_set)
         if dry_run:
-            return printGroups(cs)
-        if not len(cs):
+            return print_groups(change_set)
+        if not len(change_set):
             return
-        doStash(lambda: doCommit(cs), stash)
+        git.stash(lambda: do_commit(change_set, git), stash)
 
-def checkPristine():
-    if(len(git_exec(['ls-files', '--modified']).splitlines()) > 0):
-        fail('There are uncommitted files in your git directory')
 
-def doCommit(cs):
-    branch = getCurrentBranch()
+def do_commit(cs, git):
+    branch = git.current_branch()
     if branch:
-        git_exec(['checkout', CC_TAG])
+        git.check_out(git.cc_tag)
+
     try:
         commit(cs)
     finally:
         if branch:
-            git_exec(['rebase', CI_TAG, CC_TAG])
-            git_exec(['rebase', CC_TAG, branch])
+            git.rebase(git.ci_tag(), git.cc_tag())
+            git.rebase(git.cc_tag(), branch)
         else:
-            git_exec(['branch', '-f', CC_TAG])
-        tag(CI_TAG, CC_TAG)
+            git.branch(git.cc_tag())
+        git.tag(git.ci_tag(), git.cc_tag())
 
-def getSince():
-    try:
-        date = git_exec(['log', '-n', '1', '--pretty=format:%ai', '%s' % CC_TAG])
-        date = date[:19]
-        date = datetime.strptime(date, '%Y-%m-%d %H:%M:%S')
-        date = date + timedelta(seconds=1)
-        return datetime.strftime(date, '%d-%b-%Y.%H:%M:%S')
-    except:
-        return cfg.get('since')
 
-def getHistory(since):
-    lsh = CC_LSH[:]
-    if since:
-        lsh.extend(['-since', since])
-    lsh.extend(cfg.getInclude())
-    return cc_exec(lsh)
-
-def filterBranches(version, all=False):
-    version = version.split(FS)
+def filter_branches(config, version, complete=False):
+    print 'Version: ', version, complete
+    version = version.split(GitCcConstants.file_separator())
     version.pop()
     version = version[-1]
-    branches = cfg.getBranches();
-    if all:
-        branches.extend(cfg.getExtraBranches())
+    branches = config.branches();
+    if complete:
+        branches.extend(config.extra_branches())
     for branch in branches:
         if fnmatch(version, branch):
             return True
     return False
 
-def parseHistory(lines):
-    changesets = []
-    def add(split, comment):
+
+def parse_history(cache, config, clear_case, git, lines):
+    change_sets = []
+
+    def add(cache, config, clear_case, git, split, comment):
         if not split:
             return
         cstype = split[0]
         if cstype in TYPES:
-            cs = TYPES[cstype](split, comment)
+            cs = TYPES[cstype](cache, config, clear_case, git, split, comment)
             try:
-                if filterBranches(cs.version):
-                    changesets.append(cs)
+                if filter_branches(config, cs.version):
+                    change_sets.append(cs)
             except Exception as e:
                 print('Bad line', split, comment)
                 raise
+
     last = None
     comment = None
     for line in lines.splitlines():
@@ -123,150 +128,183 @@ def parseHistory(lines):
             # Cope with comments with '|' character in them
             comment += "\n" + DELIM.join(split)
         else:
-            add(last, comment)
+            add(cache, config, clear_case, git, last, comment)
             comment = DELIM.join(split[5:])
             last = split
-    add(last, comment)
-    return changesets
+    add(cache, config, clear_case, git, last, comment)
+    return change_sets
 
-def mergeHistory(changesets):
+
+def merge_history(cache, clear_case, git, change_sets):
     last = None
     groups = []
+
     def same(a, b):
         return a.subject == b.subject and a.user == b.user
-    for cs in changesets:
-        if last and same(last, cs):
-            last.append(cs)
+
+    for change in change_sets:
+        if last and same(last, change):
+            last.append(change)
         else:
-            last = Group(cs)
+            last = Group(cache, clear_case, git, change)
             groups.append(last)
     for group in groups:
-        group.fixComment()
+        group.fix_comment()
     return groups
+
 
 def commit(list):
     for cs in list:
         cs.commit()
 
-def printGroups(groups):
+
+def print_groups(groups):
     for cs in groups:
         print('%s "%s"' % (cs.user, cs.subject))
         for file in cs.files:
             print("  %s" % file.file)
 
+
 class Group:
-    def __init__(self, cs):
+    def __init__(self, cache, clear_case, git, cs):
+        self.cache = cache
+        self.clear_case = clear_case
+        self.git = git
         self.user = cs.user
         self.comment = cs.comment
         self.subject = cs.subject
         self.files = []
-        self.append(cs)
+        self.date = cs.date
+        self.files.append(cs)
+
     def append(self, cs):
         self.date = cs.date
         self.files.append(cs)
-    def fixComment(self):
-        self.comment = cc.getRealComment(self.comment)
+
+    def fix_comment(self):
+        self.comment = self.clear_case.comment(self.comment)
         self.subject = self.comment.split('\n')[0]
+
     def commit(self):
-        def getCommitDate(date):
-            return date[:4] + '-' + date[4:6] + '-' + date[6:8] + ' ' + \
-                   date[9:11] + ':' + date[11:13] + ':' + date[13:15]
-        def getUserName(user):
+        def commit_date(date):
+            return date[:4] + '-' + date[4:6] + '-' + date[6:8] + ' ' + date[9:11] + ':' + date[11:13] + ':' + date[13:15]
+
+        def user_name(user):
             return str(user).split(' <')[0]
-        def getUserEmail(user):
+
+        def user_email(user):
             email = search('<.*@.*>', str(user))
-            if email == None:
-                return '<%s@%s>' % (user.lower().replace(' ','.').replace("'", ''), mailSuffix)
+            if email is None:
+                return '<%s@%s>' % (user.lower().replace(' ', '.').replace("'", ''), mailSuffix)
             else:
                 return email.group(0)
+
         files = []
-        for file in self.files:
-            files.append(file.file)
-        for file in self.files:
-            file.add(files)
-        cache.write()
+        for file_name in self.files:
+            files.append(file_name.file)
+        for file_name in self.files:
+            file_name.add(files)
+        self.cache.write()
         env = os.environ
         user = users.get(self.user, self.user)
-        env['GIT_AUTHOR_DATE'] = env['GIT_COMMITTER_DATE'] = str(getCommitDate(self.date))
-        env['GIT_AUTHOR_NAME'] = env['GIT_COMMITTER_NAME'] = getUserName(user)
-        env['GIT_AUTHOR_EMAIL'] = env['GIT_COMMITTER_EMAIL'] = str(getUserEmail(user))
+        env['GIT_AUTHOR_DATE'] = env['GIT_COMMITTER_DATE'] = str(commit_date(self.date))
+        env['GIT_AUTHOR_NAME'] = env['GIT_COMMITTER_NAME'] = user_name(user)
+        env['GIT_AUTHOR_EMAIL'] = env['GIT_COMMITTER_EMAIL'] = str(user_email(user))
         comment = self.comment if self.comment.strip() != "" else "<empty message>"
         try:
-            git_exec(['commit', '-m', comment.encode(ENCODING)], env=env)
+            self.git.commit(comment.encode(Encoding.encoding()), env=env)
         except Exception as e:
+            print 'Error: %s' % e
             if search('nothing( added)? to commit', e.args[0]) == None:
                 raise
+
 
 def cc_file(file, version):
     return '%s@@%s' % (file, version)
 
-class Changeset(object):
-    def __init__(self, split, comment):
+
+class ChangeSet(object):
+    def __init__(self, cache, config, clear_case, git, split, comment):
+        self.cache = cache
+        self.config = config
+        self.clear_case = clear_case
+        self.git = git
+
         self.date = split[1]
         self.user = split[2]
         self.file = split[3]
         self.version = split[4]
         self.comment = comment
         self.subject = comment.split('\n')[0]
+
     def add(self, files):
         self._add(self.file, self.version)
-    def _add(self, file, version):
-        if not cache.update(CCFile(file, version)):
-            return
-        if [e for e in cfg.getExclude() if fnmatch(file, e)]:
-            return
-        toFile = path(join(GIT_DIR, file))
-        mkdirs(toFile)
-        removeFile(toFile)
-        try:
-            cc_exec(['get','-to', toFile, cc_file(file, version)])
-        except:
-            if len(file) < 200:
-                raise
-            debug("Ignoring %s as it may be related to https://github.com/charleso/git-cc/issues/9" % file)
-        if not exists(toFile):
-            git_exec(['checkout', 'HEAD', toFile])
-        else:
-            os.chmod(toFile, os.stat(toFile).st_mode | stat.S_IWRITE)
-        git_exec(['add', '-f', file], errors=False)
 
-class Uncataloged(Changeset):
+    def _add(self, file_path, version):
+        if not self.cache.update(CCFile(file_path, version)):
+            return
+        if [e for e in self.config.exclude() if fnmatch(file_path, e)]:
+            return
+        to_file_path = self.config.path(join(ConfigParser.git_dir(), file_path))
+        IO.make_directories(to_file_path)
+        IO.remove_file(to_file_path)
+        try:
+            self.clear_case.get_file(to_file_path, cc_file(file_path, version))
+        except:
+            if len(file_path) < 200:
+                raise
+            logger.debug("Ignoring %s as it may be related to https://github.com/charleso/git-cc/issues/9" % file_path)
+        if not exists(to_file_path):
+            self.git.check_out_file(to_file_path)
+        else:
+            os.chmod(to_file_path, os.stat(to_file_path).st_mode | stat.S_IWRITE)
+        self.git.force_add(file_path)
+
+
+class Uncataloged(ChangeSet):
+
+    def __init__(self, cache, config, clear_case, git, split, comment):
+        ChangeSet.__init__(self, cache, config, clear_case, git, split, comment)
+
+    def get_file(self, line):
+        return join(self.file, line[2:max(line.find('  '), line.find(GitCcConstants.file_separator() + ' '))])
+
     def add(self, files):
-        dir = path(cc_file(self.file, self.version))
-        diff = cc_exec(['diff', '-diff_format', '-pred', dir], errors=False)
-        def getFile(line):
-            return join(self.file, line[2:max(line.find('  '), line.find(FS + ' '))])
+        directory = self.config.path(cc_file(self.file, self.version))
+        diff = self.clear_case.diff_directory(directory)
+
         for line in diff.split('\n'):
             sym = line.find(' -> ')
             if sym >= 0:
                 continue
             if line.startswith('<'):
-                git_exec(['rm', '-r', getFile(line)], errors=False)
-                cache.remove(getFile(line))
+                self.git.remove(self.get_file(line))
+                self.cache.remove(self.get_file(line))
             elif line.startswith('>'):
-                added = getFile(line)
-                cc_added = join(CC_DIR, added)
+                added = self.get_file(line)
+                cc_added = join(ConfigParser.cc_dir(), added)
                 if not exists(cc_added) or isdir(cc_added) or added in files:
                     continue
-                history = cc_exec(['lshistory', '-fmt', '%o%m|%Nd|%Vn\\n', added], errors=False)
+                history = self.clear_case.list_file_history(added)
                 if not history:
                     continue
                 history = filter(None, history.split('\n'))
                 all_versions = self.parse_history(history)
 
-                date = cc_exec(['describe', '-fmt', '%Nd', dir])
+                date = self.clear_case.describe_directory(directory)
                 actual_versions = self.filter_versions(all_versions, lambda x: x[1] < date)
 
-                versions = self.checkin_versions(actual_versions)
+                versions = self.check_in_versions(actual_versions)
                 if not versions:
                     print("No proper versions of '%s' file. Check if it is empty." % added)
                     versions = self.empty_file_versions(actual_versions)
                 if not versions:
-                    print("It appears that you may be missing a branch in the includes section of your gitcc config for file '%s'." % added)
+                    print("It appears that you may be missing a branch "
+                          "in the includes section of your gitcc config for file '%s'." % added)
                     continue
                 self._add(added, versions[0][2].strip())
 
-    def checkin_versions(self, versions):
+    def check_in_versions(self, versions):
         return self.filter_versions_by_type(versions, 'checkinversion')
 
     def empty_file_versions(self, versions):
@@ -282,19 +320,22 @@ class Uncataloged(Changeset):
             return False
         return self.filter_versions(versions, lambda x: x[0] == 'mkelemversion')
 
-    def filter_versions_by_type(self, versions, type):
+    def filter_versions_by_type(self, versions, kind):
         def f(s):
-            return s[0] == type and filterBranches(s[2], True)
+            return s[0] == kind and filter_branches(self.config, s[2], True)
+
         return self.filter_versions(versions, f)
 
-    def filter_versions(self, versions, handler):
+    @staticmethod
+    def filter_versions(versions, handler):
         return list(filter(handler, versions))
 
-    def parse_history(self, history_arr):
+    @staticmethod
+    def parse_history(history_arr):
         return list(map(lambda x: x.split('|'), history_arr))
 
 
-TYPES = {\
-    'checkinversion': Changeset,\
-    'checkindirectory version': Uncataloged,\
+TYPES = { \
+    'checkinversion': ChangeSet, \
+    'checkindirectory version': Uncataloged, \
 }
