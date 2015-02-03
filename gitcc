@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-import os
 import sys
 import inspect
 from optparse import OptionParser
@@ -25,9 +24,9 @@ def main():
 
 
 def invoke(cmd_name, args):
-
     cmd = __import__(cmd_name)
     _args, _, _, defaults = inspect.getargspec(cmd.main)
+
     defaults = defaults if defaults else []
     diff = len(_args) - len(defaults)
     _args = _args[diff:]
@@ -39,12 +38,14 @@ def invoke(cmd_name, args):
             'dest': name,
         }
         if not default:
-            option['action'] = "store_true"
+            option['action'] = "store"
         name = name.replace('_', '-')
         parser.add_option('--' + name, **option)
+
     (options, args) = parser.parse_args(args[1:])
     if len(args) < diff:
         parser.error("incorrect number of arguments")
+
     for name in _args:
         args.append(getattr(options, name))
     cmd.main(*args)
