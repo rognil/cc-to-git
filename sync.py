@@ -7,7 +7,7 @@ import stat
 from os.path import join, abspath, isdir
 from fnmatch import fnmatch
 
-from cache import Cache, CCFile, NoCache
+from cache import Cache
 from fileio import IO
 from configuration import ConfigParser
 
@@ -35,12 +35,14 @@ def main(cache=False):
                 if fnmatch(file_name, glob):
                     copy(join(rel_dir, file_name))
 
+
 def copy(file_name):
     new_file = join(ConfigParser.git_dir()(), file_name)
     logger.debug('Copying %s' % new_file)
     IO.make_directories(new_file)
     shutil.copy(join(ConfigParser.cc_dir(), file_name), new_file)
     os.chmod(new_file, stat.S_IREAD | stat.S_IWRITE)
+
 
 def sync_cache():
     cache1 = Cache(ConfigParser.git_dir())

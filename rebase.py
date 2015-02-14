@@ -17,6 +17,7 @@ from encoding import Encoding
 
 import logging
 logger = logging.getLogger(__name__)
+error_logger = logging.getLogger("error")
 
 """
 Things remaining:
@@ -82,42 +83,53 @@ def do_commit(cs, git):
     try:
         commit(cs)
     finally:
+        logger.debug("On branch: ", branch)
         if branch:
             git.rebase(git.ci_tag(), git.cc_tag())
             git.rebase(git.cc_tag(), branch)
         else:
+            logger.debug("On branch: ", branch)
             git.branch(git.cc_tag())
         git.tag(git.ci_tag(), git.cc_tag())
 
 
 def filter_branches(config, version, complete=False):
-    print 'Version: ', version, complete
     version = version.split(GitCcConstants.file_separator())
     version.pop()
     version = version[-1]
-    branches = config.branches();
+    branches = config.branches()
+    logger.debug('Branches: %s', branches)
     if complete:
         branches.extend(config.extra_branches())
     for branch in branches:
         if fnmatch(version, branch):
+            logger.debug('Branch match: %s, %s', version, complete)
             return True
+    logger.debug('Branch skip: %s, %s', version, complete)
     return False
 
 
 def parse_history(cache, config, clear_case, git, lines):
+
+    types = {
+        'checkinversion': ChangeSet,
+        'checkindirectory version': Uncataloged,
+    }
+
     change_sets = []
 
-    def add(cache, config, clear_case, git, split, comment):
-        if not split:
+    def add(_cache, _config, _clear_case, _git, _split, _comment):
+        if not _split:
             return
-        cstype = split[0]
-        if cstype in TYPES:
-            cs = TYPES[cstype](cache, config, clear_case, git, split, comment)
+        cstype = _split[0]
+        if cstype in types:
+            cs = types[cstype](_cache, _config, _clear_case, _git, _split, _comment)
             try:
-                if filter_branches(config, cs.version):
+                logger.debug('Parse history %s', cs.version)
+                if filter_branches(_config, cs.version):
                     change_sets.append(cs)
             except Exception as e:
-                print('Bad line', split, comment)
+                error_logger.warn('Bad line %s, %s' % (_split, _comment))
                 raise
 
     last = None
@@ -153,8 +165,8 @@ def merge_history(cache, clear_case, git, change_sets):
     return groups
 
 
-def commit(list):
-    for cs in list:
+def commit(change_set):
+    for cs in change_set:
         cs.commit()
 
 
@@ -212,10 +224,12 @@ class Group:
         env['GIT_AUTHOR_EMAIL'] = env['GIT_COMMITTER_EMAIL'] = str(user_email(user))
         comment = self.comment if self.comment.strip() != "" else "<empty message>"
         try:
-            self.git.commit(comment.encode(Encoding.encoding()), env=env)
+            logger.debug('Comment: %s, Env: %s' % (comment, env))
+            self.git.commit(comment, env=env)
+
         except Exception as e:
-            print 'Error: %s' % e
-            if search('nothing( added)? to commit', e.args[0]) == None:
+            error_logger.error('Error: %s' % e)
+            if search('nothing( added)? to commit', e.args[0]) is None:
                 raise
 
 
@@ -252,6 +266,7 @@ class ChangeSet(object):
             self.clear_case.get_file(to_file_path, cc_file(file_path, version))
         except:
             if len(file_path) < 200:
+                error_logger.warn('Caught error adding %s' % file_path)
                 raise
             logger.debug("Ignoring %s as it may be related to https://github.com/charleso/git-cc/issues/9" % file_path)
         if not exists(to_file_path):
@@ -333,9 +348,3 @@ class Uncataloged(ChangeSet):
     @staticmethod
     def parse_history(history_arr):
         return list(map(lambda x: x.split('|'), history_arr))
-
-
-TYPES = { \
-    'checkinversion': ChangeSet, \
-    'checkindirectory version': Uncataloged, \
-}

@@ -1,6 +1,9 @@
 import sys
 import locale
 
+import logging
+error_logger = logging.getLogger("error")
+
 from constants import GitCcConstants
 
 
@@ -11,17 +14,22 @@ class Encoding:
         if hasattr(sys.stdin, 'encoding'):
             Encoding.__encoding = sys.stdin.encoding
         if Encoding.__encoding is None:
-            locale_name, self.__encoding = locale.getdefaultlocale()
-        if Encoding.__encoding is None:
             Encoding.__encoding = GitCcConstants.encoding()
+        if Encoding.__encoding is None:
+            locale_name, self.__encoding = locale.getdefaultlocale()
 
     @staticmethod
     def encoding():
         return Encoding.__encoding
 
-    def decode_string(self, encoding_str, output):
+    @staticmethod
+    def decode(str):
+        return str.decode(Encoding.__encoding)
+
+    @staticmethod
+    def decode_string(encoding_str, output):
         try:
             return output.decode(encoding_str)
         except UnicodeDecodeError as e:
-            print >> sys.stderr, output, ":", e
+            error_logger.warn('Error: %s' % e)
             return output.decode(encoding_str, "ignore")

@@ -3,8 +3,10 @@ from configuration import ConfigParser
 from fileio import IO
 from encoding import Encoding
 from constants import GitCcConstants
+
 import logging
 logger = logging.getLogger(__name__)
+error_logger = logging.getLogger("error")
 
 
 class ClearCaseCommon:
@@ -72,7 +74,7 @@ class ClearCaseCommon:
         self.__cc_exec(['unco', '-rm', file_name])
 
     def get_file(self, to_file_path, from_file_path):
-        self.__cc_exec(['get', '-to', to_file_path, from_file_path])
+        self.__cc_exec(['get', '-to', to_file_path, from_file_path],)
 
     @staticmethod
     def cc_file(file_path, version):
@@ -84,17 +86,20 @@ class ClearCaseCommon:
         cmd.insert(0, exe)
         if logger.level == logging.DEBUG:
             f = lambda a: a if not a.count(' ') else '"%s"' % a
-            print 'Command:', cmd
+            logger.debug('Command: %s' % cmd)
             logger.debug('> ' + ' '.join(map(f, cmd)))
         if GitCcConstants.simulate_cc():
-            print exe, cmd
+            logger.debug('Execute: %s, command %s ' % (exe, cmd))
             return ''
         else:
+            if GitCcConstants.debug():
+                logger.debug('ClearCase cmd: %s', cmd)
             pipe = Popen(cmd, cwd=cwd, stdout=PIPE, stderr=PIPE, env=env)
             (stdout, stderr) = pipe.communicate()
             if encode is None:
                 encode = self.encoding.encoding()
             if errors and pipe.returncode > 0:
+                error_logger.warn("Error executing cmd %s: %s" % (cmd, self.encoding.decode_string(encode, stderr + stdout)))
                 raise Exception(self.encoding.decode_string(encode, stderr + stdout))
             return stdout if not decode else self.encoding.decode_string(encode, stdout)
 

@@ -1,6 +1,5 @@
 from os.path import join, exists
 
-
 from clearcase import UCM, ClearCase
 from git import Git
 
@@ -9,17 +8,18 @@ from configuration import ConfigParser
 
 import logging
 logger = logging.getLogger(__name__)
+error_logger = logging.getLogger("error")
 
 
 class Cache(object):
-    config = ConfigParser()
+    __config = ConfigParser()
 
     def __init__(self, dir):
         self.map = {}
-        self.clear_case = (UCM if Cache.config.core('type') == 'UCM' else ClearCase)()
+        self.clear_case = (UCM if Cache.__config.core('type') == 'UCM' else ClearCase)()
         self.constants = GitCcConstants()
         self.git = Git()
-        self.file_name = self.constants.gitcc_file()
+        self.file_name = dir + self.constants.file_separator() + self.constants.gitcc_file()
         self.dir = dir
         self.empty = Version('/main/0')
 
@@ -51,7 +51,7 @@ class Cache(object):
         is_child = self.map.get(path.file_name, self.empty).child(path.version)
         if is_child:
             self.map[path.file_name] = path.version
-        return is_child or path.version.endswith(Cache.config.branches()[0])
+        return is_child or path.version.endswith(Cache.__config.branches()[0])
 
     def remove(self, filename):
         if filename in self.map:
@@ -68,7 +68,7 @@ class Cache(object):
             f.write('\n'.join(lines))
             f.write('\n')
         except UnicodeEncodeError:
-            print 'Lines: ' + '\n'.join(lines)
+            error_logger.warn('Error on lines: %s' % '\n'.join(lines))
         finally:
             f.close()
         self.git.add(self.file_name)

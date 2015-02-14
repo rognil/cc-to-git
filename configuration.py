@@ -17,6 +17,8 @@ from git import Git
 
 from common import fail
 
+import logging
+logger = logging.getLogger(__name__)
 
 class ConfigParser():
 
@@ -66,12 +68,12 @@ class ConfigParser():
             print 'Git Dir: ', ConfigParser.__git_dir
             print 'CC Dir: ', ConfigParser.__cc_dir
             print 'Section: ', self.section
-
+            print 'Branches: ', self.branches()
             ConfigParser.__initialized = True
         ConfigParser.__lock.release()
 
     def set_section(self, name, value):
-        print self.section, name, value
+        logger.debug('Section %s, name %s, value %s' % (self.section, name, value))
         ConfigParser.__parser.set(self.section, name, value)
 
     def section(self):

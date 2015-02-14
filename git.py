@@ -9,6 +9,7 @@ from threading import Lock
 
 import logging
 logger = logging.getLogger(__name__)
+error_logger = logging.getLogger("error")
 
 
 class Git:
@@ -174,17 +175,20 @@ class Git:
         cmd.insert(0, exe)
         if logger.level == logging.DEBUG:
             f = lambda a: a if not a.count(' ') else '"%s"' % a
-            print 'Command:', cmd
+            logger.debug('Command: %s' % cmd)
             logger.debug('> ' + ' '.join(map(f, cmd)))
         if GitCcConstants.simulate_git():
-            print exe, cmd
+            logger.debug('Execute: %s, command %s ' % (exe, cmd))
             return ''
         else:
+            if GitCcConstants.debug():
+                logger.debug('Git cmd: %s', cmd)
             pipe = Popen(cmd, cwd=cwd, stdout=PIPE, stderr=PIPE, env=env)
             (stdout, stderr) = pipe.communicate()
             if encode is None:
                 encode = self.encoding.encoding()
             if errors and pipe.returncode > 0:
+                error_logger.warn("Error executing cmd %s: %s" % (cmd, self.encoding.decode_string(encode, stderr + stdout)))
                 raise Exception(self.encoding.decode_string(encode, stderr + stdout))
             return stdout if not decode else self.encoding.decode_string(encode, stdout)
 

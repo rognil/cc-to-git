@@ -83,6 +83,7 @@ class GitTransaction(ClearCaseTransaction):
         git_id = self.git.blob(self.base, file_name)
         if cc_id != git_id:
             if not self.ignore_conflicts:
+                error_logger.warn('File has been modified: %s. Try rebasing.' % file_name)
                 raise Exception('File has been modified: %s. Try rebasing.' % file_name)
             else:
                 error_logger.warn('WARNING: Detected possible conflict with', file_name, '...ignoring...')

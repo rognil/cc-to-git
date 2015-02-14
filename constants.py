@@ -7,13 +7,13 @@ import os
 
 class GitCcConstants:
 
-    __default_logger = "gitcc.log"
+    __default_logger_config = "logging.conf"
     __default_logger_level = logging.DEBUG
     __default_encoding = "ISO8859-15"
     __debug = 1
     __history_file = "lshistory.bak"
     __gitcc_file = '.gitcc'
-    __simulate_cc = 1
+    __simulate_cc = 0
     __simulate_git = 0
     __enable_history = 1
     __cygwin = sys.platform == 'cygwin'
@@ -25,8 +25,8 @@ class GitCcConstants:
         pass
 
     @staticmethod
-    def logger_name():
-        return GitCcConstants.__default_logger
+    def logger_conf_name():
+        return GitCcConstants.__default_logger_config
 
     @staticmethod
     def gitcc_file():
