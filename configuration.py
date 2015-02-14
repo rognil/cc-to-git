@@ -69,6 +69,9 @@ class ConfigParser():
             print 'CC Dir: ', ConfigParser.__cc_dir
             print 'Section: ', self.section
             print 'Branches: ', self.branches()
+            print '\n'
+            print 'Environment', os.environ
+
             ConfigParser.__initialized = True
         ConfigParser.__lock.release()
 

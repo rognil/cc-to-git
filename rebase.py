@@ -83,12 +83,12 @@ def do_commit(cs, git):
     try:
         commit(cs)
     finally:
-        logger.debug("On branch: ", branch)
+        logger.debug("On branch: %s" % branch)
         if branch:
             git.rebase(git.ci_tag(), git.cc_tag())
             git.rebase(git.cc_tag(), branch)
         else:
-            logger.debug("On branch: ", branch)
+            logger.debug("On branch: %s" % branch)
             git.branch(git.cc_tag())
         git.tag(git.ci_tag(), git.cc_tag())
 
@@ -224,7 +224,7 @@ class Group:
         env['GIT_AUTHOR_EMAIL'] = env['GIT_COMMITTER_EMAIL'] = str(user_email(user))
         comment = self.comment if self.comment.strip() != "" else "<empty message>"
         try:
-            logger.debug('Comment: %s, Env: %s' % (comment, env))
+            logger.debug('Comment: %s' % comment)
             self.git.commit(comment, env=env)
 
         except Exception as e:
