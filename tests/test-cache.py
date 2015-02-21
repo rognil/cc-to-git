@@ -26,8 +26,8 @@ class CacheTest(unittest.TestCase):
             self.assertFalse(c.isChild(CCFile('file.py', r'\main\a\1')))
             self.assertTrue(c.isChild(CCFile('file.py', '/main/a/b/c/1')))
             self.assertFalse(c.isChild(CCFile('file.py', '/main/a/c/1')))
-            c.update(CCFile('file.py', '/main/a/b/2'))
-            c.update(CCFile('file2.py', '/main/c/2'))
+            c.check_and_update_path_in_current_branch(CCFile('file.py', '/main/a/b/2'))
+            c.check_and_update_path_in_current_branch(CCFile('file2.py', '/main/c/2'))
             c.write()
             f = open(join(dir, cache.FILE), 'r')
             try:

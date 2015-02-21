@@ -1,2 +1,4 @@
 users.py
 *.pyc
+.idea
+nbproject

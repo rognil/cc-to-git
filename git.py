@@ -8,8 +8,6 @@ from constants import GitCcConstants
 from threading import Lock
 
 import logging
-logger = logging.getLogger(__name__)
-error_logger = logging.getLogger("error")
 
 
 class Git:
@@ -25,9 +23,11 @@ class Git:
     def __init__(self, dir='.'):
         Git.__lock.acquire()
         self.encoding = Encoding()
+        self.logger = logging.getLogger(__name__)
+        self.error_logger = logging.getLogger("error")
         if not Git.__initialized:
             Git.__git_dir = dir
-            branch = self.current_branch() or 'master'
+            branch = self.current_branch()
             if branch.endswith('_cc'):
                 Git.__cc_tag = branch
                 Git.__ci_tag = branch.replace('_cc', '_ci')
@@ -106,11 +106,9 @@ class Git:
                 branch = branch[2:]
                 if branch == '(no branch)':
                     fail("Why aren't you on a branch?")
-                if branch == 'master':
-                    return ""
-                logger.debug("Current branch: ", branch)
+                self.logger.debug("Current branch: %s", branch)
                 return branch
-        return ""
+        return "master"
 
     def blob(self, sha, blob_file):
         return self.__git_exec(['ls-tree', '-z', sha, blob_file]).split(' ')[2].split('\t')[0]
@@ -168,27 +166,26 @@ class Git:
         return find_dir(abspath('.'))
 
     def __git_exec(self, cmd, env=None, decode=True, errors=True):
-        exe='git'
-        cwd=self.__git_dir
-        encode=Encoding.encoding()
+        exe = 'git'
+        cwd = self.__git_dir
+        encode = Encoding.encoding()
 
         cmd.insert(0, exe)
-        if logger.level == logging.DEBUG:
+        if self.logger.isEnabledFor(logging.DEBUG):
             f = lambda a: a if not a.count(' ') else '"%s"' % a
-            logger.debug('Command: %s' % cmd)
-            logger.debug('> ' + ' '.join(map(f, cmd)))
+            # self.logger.debug('cmd: %s' % cmd)
+            self.logger.debug('> ' + ' '.join(map(f, cmd)))
+
         if GitCcConstants.simulate_git():
-            logger.debug('Execute: %s, command %s ' % (exe, cmd))
+            self.logger.debug('Execute: %s, command %s ' % (exe, cmd))
             return ''
         else:
-            if GitCcConstants.debug():
-                logger.debug('Git cmd: %s', cmd)
             pipe = Popen(cmd, cwd=cwd, stdout=PIPE, stderr=PIPE, env=env)
             (stdout, stderr) = pipe.communicate()
             if encode is None:
                 encode = self.encoding.encoding()
             if errors and pipe.returncode > 0:
-                error_logger.warn("Error executing cmd %s: %s" % (cmd, self.encoding.decode_string(encode, stderr + stdout)))
+                self.error_logger.warn("Error exec cmd %s: %s" % (cmd, self.encoding.decode_string(encode, stderr + stdout)))
                 raise Exception(self.encoding.decode_string(encode, stderr + stdout))
             return stdout if not decode else self.encoding.decode_string(encode, stdout)
 

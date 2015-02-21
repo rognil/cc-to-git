@@ -53,7 +53,7 @@ def sync_cache():
     
     for path in cache2.list():
         if not cache1.contains(path):
-            cache1.update(path)
+            cache1.check_and_update_path_in_current_branch(path)
             if not isdir(join(ConfigParser.cc_dir(), path.file)):
                 copy(path.file)
     cache1.write()

@@ -2,19 +2,21 @@
 import sys
 import inspect
 from optparse import OptionParser
+
 from gitcclogger import GitCcLogger
-from configuration import ConfigParser
 from constants import GitCcConstants
 from os.path import join
-from encoding import Encoding
+import os
+
 commands = [
     'init', 'rebase', 'checkin', 'sync', 'reset', 'tag', 'update'
 ]
 
 
 def main():
-    directories = ConfigParser.git_dir().split(GitCcConstants.file_separator())[:-1]
-    GitCcLogger(join(GitCcConstants.file_separator().join(directories), GitCcConstants.logger_conf_name()))
+
+    path = os.getcwd().split(GitCcConstants.file_separator())[:-1]
+    GitCcLogger(join(GitCcConstants.file_separator().join(path), GitCcConstants.logger_conf_name()))
 
     args = sys.argv[1:]
     for cmd in commands:

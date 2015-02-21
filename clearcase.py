@@ -5,13 +5,14 @@ from encoding import Encoding
 from constants import GitCcConstants
 
 import logging
-logger = logging.getLogger(__name__)
-error_logger = logging.getLogger("error")
 
 
 class ClearCaseCommon:
 
     def __init__(self):
+        self.logger = logging.getLogger(__name__)
+        self.error_logger = logging.getLogger("error")
+
         self.io = IO()
         self.config = ConfigParser()
         self.encoding = Encoding()
@@ -84,22 +85,20 @@ class ClearCaseCommon:
         exe='cleartool'
         cwd=self.config.cc_dir()
         cmd.insert(0, exe)
-        if logger.level == logging.DEBUG:
+        if self.logger.isEnabledFor(logging.DEBUG):
             f = lambda a: a if not a.count(' ') else '"%s"' % a
-            logger.debug('Command: %s' % cmd)
-            logger.debug('> ' + ' '.join(map(f, cmd)))
+            # self.logger.debug('cmd: %s' % cmd)
+            self.logger.debug('> ' + ' '.join(map(f, cmd)))
         if GitCcConstants.simulate_cc():
-            logger.debug('Execute: %s, command %s ' % (exe, cmd))
+            self.logger.debug('Execute: %s, command %s ' % (exe, cmd))
             return ''
         else:
-            if GitCcConstants.debug():
-                logger.debug('ClearCase cmd: %s', cmd)
             pipe = Popen(cmd, cwd=cwd, stdout=PIPE, stderr=PIPE, env=env)
             (stdout, stderr) = pipe.communicate()
             if encode is None:
                 encode = self.encoding.encoding()
             if errors and pipe.returncode > 0:
-                error_logger.warn("Error executing cmd %s: %s" % (cmd, self.encoding.decode_string(encode, stderr + stdout)))
+                self.error_logger.warn("Error exec cmd %s: %s" % (cmd, self.encoding.decode_string(encode, stderr + stdout)))
                 raise Exception(self.encoding.decode_string(encode, stderr + stdout))
             return stdout if not decode else self.encoding.decode_string(encode, stdout)
 
@@ -138,8 +137,8 @@ class UCM(ClearCaseCommon):
     def rebase(self):
         out = self.__cc_exec(['rebase', '-rec', '-f'])
         if not out.startswith('No rebase needed'):
-            logger.debug(out)
-            logger.debug(self.__cc_exec(['rebase', '-complete']))
+            self.logger.debug(out)
+            self.logger.debug(self.__cc_exec(['rebase', '-complete']))
 
     def make_activity(self, comment):
         self.activity = self._activities().get(comment)
@@ -158,8 +157,8 @@ class UCM(ClearCaseCommon):
 
     def commit(self):
         self.__cc_exec(['setact', '-none'])
-        logger.debug(self.__cc_exec(['deliver', '-f']))
-        logger.debug(self.__cc_exec(['deliver', '-com', '-f']))
+        self.logger.debug(self.__cc_exec(['deliver', '-f']))
+        self.logger.debug(self.__cc_exec(['deliver', '-com', '-f']))
 
     @staticmethod
     def comment_format():

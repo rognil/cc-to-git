@@ -7,21 +7,21 @@ from constants import GitCcConstants
 from configuration import ConfigParser
 
 import logging
-logger = logging.getLogger(__name__)
-error_logger = logging.getLogger("error")
 
 
 class Cache(object):
     __config = ConfigParser()
 
     def __init__(self, dir):
+        self.logger = logging.getLogger(__name__)
+        self.error_logger = logging.getLogger("error")
         self.map = {}
         self.clear_case = (UCM if Cache.__config.core('type') == 'UCM' else ClearCase)()
         self.constants = GitCcConstants()
         self.git = Git()
         self.file_name = dir + self.constants.file_separator() + self.constants.gitcc_file()
         self.dir = dir
-        self.empty = Version('/main/0')
+        self.empty = Branch('/main/0')
 
     def start(self):
         f = join(self.dir, self.file_name)
@@ -45,9 +45,9 @@ class Cache(object):
         for line in lines.splitlines():
             if line.find('@@') < 0:
                 continue
-            self.update(CCFile2(line))
+            self.check_and_update_path_in_current_branch(CCFile2(line))
 
-    def update(self, path):
+    def check_and_update_path_in_current_branch(self, path):
         is_child = self.map.get(path.file_name, self.empty).child(path.version)
         if is_child:
             self.map[path.file_name] = path.version
@@ -68,10 +68,9 @@ class Cache(object):
             f.write('\n'.join(lines))
             f.write('\n')
         except UnicodeEncodeError:
-            error_logger.warn('Error on lines: %s' % '\n'.join(lines))
+            self.error_logger.warn('Error on lines: %s' % '\n'.join(lines))
         finally:
             f.close()
-        self.git.add(self.file_name)
 
     def list(self):
         values = []
@@ -90,7 +89,7 @@ class NoCache(object):
     def write(self):
         pass
 
-    def update(self, path):
+    def check_and_update_path_in_current_branch(self, path):
         return True
 
     def remove(self, file_name):
@@ -102,7 +101,7 @@ class CCFile(object):
         if file_name.startswith('./') or file_name.startswith('.\\'):
             file_name = file_name[2:]
         self.file_name = file_name
-        self.version = Version(version)
+        self.version = Branch(version)
 
 
 class CCFile2(CCFile):
@@ -110,14 +109,16 @@ class CCFile2(CCFile):
         [file_name, version] = line.rsplit('@@', 1)
         super(CCFile2, self).__init__(file_name, version)
 
-
-class Version(object):
+class Branch(object):
+    """ The branch to which a change set belongs """
     def __init__(self, version):
+        #self.logger = logging.getLogger(__name__)
         self.full = version.replace('\\', '/')
         self.version = '/'.join(self.full.split('/')[0:-1])
+        #self.logger.debug ("Version %s", self.version)
 
     def child(self, version):
-        return version.version.startswith(self.version)
+        return version.version == self.version
 
     def endswith(self, version):
         return self.version.endswith('/' + version)
