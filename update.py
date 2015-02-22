@@ -6,7 +6,7 @@ from clearcase import ClearCase
 from git import Git
 
 
-def main(message):
+def main(git_cc_dir, message):
     git = Git()
     clear_case = ClearCase()
 

@@ -31,8 +31,8 @@ ARGS = {
 }
 
 
-def main(stash=False, dry_run=False, lshistory=False, load=None):
-    config = ConfigParser()
+def main(git_cc_dir='.', stash=False, dry_run=False, lshistory=False, load=None):
+    config = ConfigParser(git_cc_dir)
     git = Git()
     clear_case = ClearCase()
     io = IO()
@@ -73,7 +73,7 @@ def main(stash=False, dry_run=False, lshistory=False, load=None):
 
 def do_commit(change_set, git):
 
-    """Commit change set"""
+    """Commit change set to Git"""
     for cs in change_set:
         branch = git.current_branch()
         logger.debug("Change set branch: %s" % branch)
@@ -86,16 +86,7 @@ def do_commit(change_set, git):
                     git.branch(branch)
                     git.check_out(branch)
         logger.debug("Commit change set on branch: %s" % branch)
-        #try:
-        commit(cs)
-        # finally:
-        #     if branch != 'master':
-        #         git.rebase(git.ci_tag(), git.cc_tag())
-        #         git.rebase(git.cc_tag(), branch)
-        #     else:
-        #         logger.debug("On branch: %s" % branch)
-        #         git.branch(git.cc_tag())
-        #git.tag(git.ci_tag(), git.cc_tag())
+        cs.commit()
 
 
 def parse_history(cache, config, clear_case, git, lines):
@@ -155,11 +146,6 @@ def merge_history(cache, clear_case, git, change_sets):
     for group in groups:
         group.fix_comment()
     return groups
-
-
-def commit(change_set):
-        change_set.commit()
-
 
 def print_groups(groups):
     for cs in groups:

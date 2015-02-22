@@ -5,9 +5,9 @@ from configuration import ConfigParser
 from common import fail
 
 
-def main(cc_dir):
+def main(git_cc_dir, cc_dir):
     try:
-        config=ConfigParser('init')
+        config=ConfigParser(git_cc_dir, 'init')
     except:
         fail('\nGitCC already initialized')
     git = Git()

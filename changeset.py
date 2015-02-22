@@ -2,18 +2,17 @@
 
 import os
 import stat
-
 from os.path import join, exists, isdir
 from fnmatch import fnmatch
 from re import search
+import logging
 
 from cache import CCFile
+from conf import users
 from configuration import ConfigParser
 from constants import GitCcConstants
 from fileio import IO
-from users import users, mailSuffix
-
-import logging
+from conf.users import users, mailSuffix
 
 
 class ChangeSet(object):
@@ -163,6 +162,8 @@ class Uncataloged(ChangeSet):
 
 
 class Group:
+    """ Group files so that the commit gets atomic"""
+
     def __init__(self, cache, clear_case, git, cs):
 
         self.logger = logging.getLogger(__name__)

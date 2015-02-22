@@ -16,16 +16,16 @@ commands = [
 def main():
 
     path = os.getcwd().split(GitCcConstants.file_separator())[:-1]
-    GitCcLogger(join(GitCcConstants.file_separator().join(path), GitCcConstants.logger_conf_name()))
+    GitCcLogger(join(GitCcConstants.file_separator().join(path), GitCcConstants.conf_dir(), GitCcConstants.logger_conf_name()))
 
     args = sys.argv[1:]
     for cmd in commands:
         if args and cmd == args[0]:
-            return invoke(cmd, args)
+            return invoke(cmd, path, args)
     usage()
 
 
-def invoke(cmd_name, args):
+def invoke(cmd_name, git_cc_dir, args):
     cmd = __import__(cmd_name)
     _args, _, _, defaults = inspect.getargspec(cmd.main)
 
@@ -50,7 +50,7 @@ def invoke(cmd_name, args):
 
     for name in _args:
         args.append(getattr(options, name))
-    cmd.main(*args)
+    cmd.main(git_cc_dir, *args)
 
 
 def usage():

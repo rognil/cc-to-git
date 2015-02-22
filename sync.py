@@ -19,8 +19,8 @@ ARGS = {
 }
 
 
-def main(cache=False):
-    config = ConfigParser()
+def main(git_cc_dir='.', cache=False):
+    config = ConfigParser(git_cc_dir)
     config.validate_cc()
     if cache:
         return sync_cache()

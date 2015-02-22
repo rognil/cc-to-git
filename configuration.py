@@ -20,6 +20,7 @@ from common import fail
 import logging
 logger = logging.getLogger(__name__)
 
+
 class ConfigParser():
 
     __git = Git()
@@ -29,7 +30,7 @@ class ConfigParser():
     else:
         __git_dir = __git.dir()
 
-    __core = 'core'
+    __core = 'git_cc_core'
     __cc_cfg = 'clearcase'
 
     __debug = constants.GitCcConstants().debug()
@@ -40,9 +41,9 @@ class ConfigParser():
     __cc_dir = None
     __parser = None
 
-    def __init__(self, mode=None):
+    def __init__(self, work_dir='.', mode=None):
         ConfigParser.__lock.acquire()
-        self.section = ConfigParser.__git.current_branch() or 'master'
+        self.section = self.__core
         if ConfigParser.__git_dir is None:
             ConfigParser.__git_dir = ConfigParser.path(ConfigParser.__git.dir())
             if not exists(join(ConfigParser.__git_dir, '.git')):
@@ -53,7 +54,7 @@ class ConfigParser():
             ConfigParser.__cc_dir = self.path(self.get(ConfigParser.__cc_cfg))
         if not ConfigParser.__debug:
             ConfigParser.__debug = ConfigParser.core('debug', False)
-        self.file = join(ConfigParser.__git_dir, '.git', 'gitcc')
+        self.file = join(work_dir, constants.GitCcConstants.conf_dir(), constants.GitCcConstants.conf_file())
         if not ConfigParser.__initialized:
             self.read()
             if ConfigParser.__cc_dir is None:
@@ -102,10 +103,10 @@ class ConfigParser():
         return self.get(name, default).split('|')
 
     def branches(self):
-        return self.list('branches', 'main')
+        return self.list('branches', ConfigParser.__core)
 
     def extra_branches(self):
-        return self.list('_branches', 'main')
+        return self.list('_branches', ConfigParser.__core)
 
     def include(self):
         return self.core('include', '.').split('|')

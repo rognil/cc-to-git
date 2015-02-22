@@ -7,6 +7,8 @@ import os
 
 class GitCcConstants:
 
+    __default_config_dir = "conf"
+    __default_config_file = 'gitcc.conf'
     __default_logger_config = "logging.conf"
     __default_logger_level = logging.DEBUG
     __default_encoding = "ISO8859-15"
@@ -23,6 +25,14 @@ class GitCcConstants:
 
     def __init__(self):
         pass
+
+    @staticmethod
+    def conf_dir():
+        return GitCcConstants.__default_config_dir
+
+    @staticmethod
+    def conf_file():
+        return GitCcConstants.__default_config_file
 
     @staticmethod
     def logger_conf_name():
