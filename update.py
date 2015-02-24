@@ -5,6 +5,10 @@ import sync, reset
 from clearcase import ClearCase
 from git import Git
 
+ARGS = {
+    'message': 'Commit message'
+}
+
 
 def main(git_cc_dir, message):
     git = Git()

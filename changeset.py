@@ -8,7 +8,6 @@ from re import search
 import logging
 
 from cache import CCFile
-from conf import users
 from configuration import ConfigParser
 from constants import GitCcConstants
 from fileio import IO
@@ -47,12 +46,13 @@ class ChangeSet(object):
             return
         if [e for e in self.config.exclude() if fnmatch(file_path, e)]:
             return
-        to_file_path = self.config.path(join(ConfigParser.git_dir(), file_path))
+        #to_file_path = self.config.path(file_path)
+        to_file_path = self.config.path(join(ConfigParser.git_path(), file_path))
         IO.make_directories(to_file_path)
         IO.remove_file(to_file_path)
         try:
             # Checkout ClearCase file
-            self.clear_case.get_file(to_file_path, ChangeSet.prepare_cc_file(file_path, version))
+            self.clear_case.get_file(to_file_path, ChangeSet.prepare_cc_file(join(ConfigParser.cc_dir(), file_path), version))
         except:
             if len(file_path) < 200:
                 self.error_logger.warn('Caught error adding %s' % file_path)
@@ -74,7 +74,6 @@ class ChangeSet(object):
         version.pop()
         version = version[-1]
         branches = config.branches()
-        self.logger.debug('Branches: %s', branches)
         if complete:
             branches.extend(config.extra_branches())
         for branch in branches:

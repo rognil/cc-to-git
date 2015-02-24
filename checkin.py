@@ -6,7 +6,6 @@ from configuration import ConfigParser
 from constants import GitCcConstants
 from transaction import Transaction
 
-# TODO !!!!!!!!!!!!!!
 from activity import Modify, Add, Delete, Rename, SymLink
 
 import logging
@@ -24,7 +23,8 @@ ARGS = {
 
 
 def main(git_cc_dir='.', force=False, no_deliver=False, initial=False, complete=False, cc_label=''):
-    config = ConfigParser(git_cc_dir)
+    config = ConfigParser()
+    config.init(git_cc_dir)
     git = Git()
     clear_case = ClearCase()
 

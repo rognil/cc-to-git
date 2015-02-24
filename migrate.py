@@ -1,4 +1,4 @@
-"""Rebase from ClearCase"""
+"""Migrate from ClearCase"""
 
 from os.path import join
 
@@ -9,6 +9,8 @@ from fileio import IO
 from configuration import ConfigParser
 from encoding import Encoding
 from changeset import ChangeSet, Uncataloged, Group
+from constants import GitCcConstants
+from common import fail
 
 import logging
 logger = logging.getLogger(__name__)
@@ -24,18 +26,33 @@ Things remaining:
 DELIM = '|'
 
 ARGS = {
-    'stash': 'Wraps the rebase in a stash to avoid file changes being lost',
-    'dry_run': 'Prints a list of changesets to be imported',
+    'stash': 'Wraps the migration in a stash to avoid file changes being lost',
+    'dry_run': 'Prints a list of change sets to be imported',
     'lshistory': 'Prints the raw output of lshistory to be cached for load',
     'load': 'Loads the contents of a previously saved lshistory file',
 }
 
 
 def main(git_cc_dir='.', stash=False, dry_run=False, lshistory=False, load=None):
-    config = ConfigParser(git_cc_dir)
-    git = Git()
+
+    base_dir = GitCcConstants.file_separator().join(git_cc_dir)
+    config = ConfigParser()
+    config.init(base_dir)
+    git = Git(config.git_path())
     clear_case = ClearCase()
     io = IO()
+
+    io.make_directory(config.git_path())
+    io.cd(config.git_path())
+
+    if not io.directory_exists(GitCcConstants.git_repository_name()):
+        git.init()
+        git.config('core.autocrlf', 'false')
+        git.commit_empty('Empty commit')
+
+    git.config('core.autocrlf', 'false')
+
+    print '\nGit and ClearCase successfully initialized'
 
     if config.core('cache', True) == 'False':
         cache = NoCache()
@@ -55,8 +72,8 @@ def main(git_cc_dir='.', stash=False, dry_run=False, lshistory=False, load=None)
     else:
         clear_case.rebase()
         history = clear_case.fetch_history(since)
-        io.write(join(config.git_dir(), '.git', 'lshistory.bak'), history.encode(Encoding.encoding()))
-        history = open(join(config.git_dir(), '.git', 'lshistory.bak'), 'r').read().decode(Encoding.encoding())
+        io.write(join(base_dir, GitCcConstants.conf_dir(), GitCcConstants.history_file()), history.encode(Encoding.encoding()))
+        history = open(join(base_dir, GitCcConstants.conf_dir(), GitCcConstants.history_file()), 'r').read().decode(Encoding.encoding())
 
     if lshistory:
         print(history)
@@ -65,10 +82,15 @@ def main(git_cc_dir='.', stash=False, dry_run=False, lshistory=False, load=None)
         change_set = reversed(change_set)
         change_set = merge_history(cache, clear_case, git, change_set)
         if dry_run:
-            return print_groups(change_set)
+            print_groups(change_set)
+            io.cd(base_dir)
+            return
         if not len(change_set):
+            print "Change set failed"
+            io.cd(base_dir)
             return
         git.stash(lambda: do_commit(change_set, git), stash)
+    io.cd(base_dir)
 
 
 def do_commit(change_set, git):
@@ -78,7 +100,7 @@ def do_commit(change_set, git):
         branch = git.current_branch()
         logger.debug("Change set branch: %s" % branch)
         if branch != cs.branch:
-            if cs.branch != None:
+            if not cs.branch is None:
                 branch = cs.branch
                 try:
                     git.check_out(branch)
@@ -146,6 +168,7 @@ def merge_history(cache, clear_case, git, change_sets):
     for group in groups:
         group.fix_comment()
     return groups
+
 
 def print_groups(groups):
     for cs in groups:

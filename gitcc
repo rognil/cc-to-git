@@ -9,13 +9,13 @@ from os.path import join
 import os
 
 commands = [
-    'init', 'rebase', 'checkin', 'sync', 'reset', 'tag', 'update'
+    'configure', 'init', 'migrate', 'checkin', 'sync', 'reset', 'tag', 'update'
 ]
 
 
 def main():
 
-    path = os.getcwd().split(GitCcConstants.file_separator())[:-1]
+    path = os.getcwd().split(GitCcConstants.file_separator())
     GitCcLogger(join(GitCcConstants.file_separator().join(path), GitCcConstants.conf_dir(), GitCcConstants.logger_conf_name()))
 
     args = sys.argv[1:]
@@ -27,6 +27,7 @@ def main():
 
 def invoke(cmd_name, git_cc_dir, args):
     cmd = __import__(cmd_name)
+
     _args, _, _, defaults = inspect.getargspec(cmd.main)
 
     defaults = defaults if defaults else []
@@ -34,6 +35,8 @@ def invoke(cmd_name, git_cc_dir, args):
     _args = _args[diff:]
     parser = OptionParser(description=cmd.__doc__)
     for (name, default) in zip(_args, defaults):
+        if name == 'git_cc_dir':
+            continue
         option = {
             'default': default,
             'help': cmd.ARGS[name],
@@ -44,13 +47,15 @@ def invoke(cmd_name, git_cc_dir, args):
         name = name.replace('_', '-')
         parser.add_option('--' + name, **option)
 
-    (options, args) = parser.parse_args(args[1:])
-    if len(args) < diff:
+    parameters = []
+    for i in range(len(args)-1):
+        parameters.append(args[i+1].split('=')[1])
+
+    (options, args) = parser.parse_args(parameters)
+    if len(args) + 1 < diff:
         parser.error("incorrect number of arguments")
 
-    for name in _args:
-        args.append(getattr(options, name))
-    cmd.main(git_cc_dir, *args)
+    cmd.main(git_cc_dir, *parameters)
 
 
 def usage():

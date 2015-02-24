@@ -20,7 +20,8 @@ ARGS = {
 
 
 def main(git_cc_dir='.', cache=False):
-    config = ConfigParser(git_cc_dir)
+    config = ConfigParser()
+    config.init(git_cc_dir)
     config.validate_cc()
     if cache:
         return sync_cache()

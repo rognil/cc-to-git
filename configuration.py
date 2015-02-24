@@ -3,7 +3,7 @@ __author__ = 'rognilse'
 from distutils import __version__
 import os
 import sys
-from os.path import join, exists
+from os.path import join, basename
 from threading import Lock
 
 v30 = __version__.find("3.") == 0
@@ -23,51 +23,69 @@ logger = logging.getLogger(__name__)
 
 class ConfigParser():
 
-    __git = Git()
+    __base_dir = os.getcwd()
 
-    if constants.GitCcConstants.cygwin():
-        __git_dir = os.popen('cygpath %s "%s"' % ('-m', __git.dir())).readlines()[0].strip()
-    else:
-        __git_dir = __git.dir()
+    __git = Git('.', 'master')
+
+    __git_dir = 'git'
+
+    __git_repository_dir = join(__git_dir, constants.GitCcConstants.git_repository_name())
+
+    __git_path = './git'
 
     __core = 'git_cc_core'
     __cc_cfg = 'clearcase'
+    __git_cfg = 'git'
+    __branches = 'branches'
 
+    __conf_file = 'conf/gitcc.conf'
     __debug = constants.GitCcConstants().debug()
 
     __lock = Lock()
     __initialized = False
 
-    __cc_dir = None
+    __cc_path = None
     __parser = None
 
-    def __init__(self, work_dir='.', mode=None):
-        ConfigParser.__lock.acquire()
+    def __init__(self):
         self.section = self.__core
-        if ConfigParser.__git_dir is None:
-            ConfigParser.__git_dir = ConfigParser.path(ConfigParser.__git.dir())
-            if not exists(join(ConfigParser.__git_dir, '.git')):
-                fail("fatal: Not a git repository (or any of the parent directories): .git")
+
+    def init(self, base_dir=os.getcwd(), mode=None, git_dir=None):
+        ConfigParser.__lock.acquire()
         if not ConfigParser.__initialized:
+            ConfigParser.__base_dir = base_dir
             ConfigParser.__parser = SafeConfigParser();
-        if ConfigParser.__cc_dir is None:
-            ConfigParser.__cc_dir = self.path(self.get(ConfigParser.__cc_cfg))
-        if not ConfigParser.__debug:
-            ConfigParser.__debug = ConfigParser.core('debug', False)
-        self.file = join(work_dir, constants.GitCcConstants.conf_dir(), constants.GitCcConstants.conf_file())
-        if not ConfigParser.__initialized:
+            ConfigParser.__conf_file = join(ConfigParser.__base_dir, constants.GitCcConstants.conf_dir(), constants.GitCcConstants.conf_file())
             self.read()
-            if ConfigParser.__cc_dir is None:
-                ConfigParser.__cc_dir = self.path(self.get(ConfigParser.__cc_cfg))
+            ConfigParser.__git_path = self.path(self.core(ConfigParser.__git_cfg))
+            if ConfigParser.__git_path is None or ConfigParser.__git_path== '':
+                if git_dir is None:
+                    ConfigParser.__git_path = join(base_dir, ConfigParser.git_cfg())
+                else:
+                    ConfigParser.__git_path = join(base_dir, git_dir)
+            if git_dir is None:
+                ConfigParser.__git_dir = basename(ConfigParser.__git_path)
+            else:
+                ConfigParser.__git_dir = git_dir
+            ConfigParser.__git_repository_dir = join(ConfigParser.__git_path, constants.GitCcConstants.git_repository_name())
+            if ConfigParser.__cc_path is None:
+                ConfigParser.__cc_path = self.path(self.core(ConfigParser.__cc_cfg))
+            if not ConfigParser.__debug:
+                ConfigParser.__debug = ConfigParser.core('debug', False)
             if mode == 'init':
                 ConfigParser.__parser.add_section(self.section)
-            if not ConfigParser.__cc_dir and (len(sys.argv) > 1 and not "init" == sys.argv[1]):
+            if not ConfigParser.__cc_path and (len(sys.argv) > 1 and not ("init" == sys.argv[1] or "configure" == sys.argv[1])):
                 fail("fatal: Configuration is faulty using branch '%s'" % self.section)
 
+            #if not exists(join(ConfigParser.__git_dir, constants.GitCcConstants.git_repository_name())):
+            #    fail("fatal: Not a git repository (or any of the parent directories): .git")
+
             print '\n'
-            print 'GitCC: ', self.file
+            print 'GitCC Dir: ', ConfigParser.__base_dir
+            print 'GitCC Conf: ', ConfigParser.__conf_file
+            print 'Git Path: ', ConfigParser.__git_path
+            print 'CC Path: ', ConfigParser.__cc_path
             print 'Git Dir: ', ConfigParser.__git_dir
-            print 'CC Dir: ', ConfigParser.__cc_dir
             print 'Section: ', self.section
             print 'Branches: ', self.branches()
             print '\n'
@@ -84,14 +102,14 @@ class ConfigParser():
         return self.section
 
     def validate_cc(self):
-        if not ConfigParser.__cc_dir:
+        if not ConfigParser.__cc_path:
             fail("No 'clearcase' variable found for branch '%s'" % self.section)
 
     def read(self):
-        ConfigParser.__parser.read(self.file)
+        ConfigParser.__parser.read(ConfigParser.__conf_file)
 
     def write(self):
-        ConfigParser.__parser.write(open(self.file, 'w'))
+        ConfigParser.__parser.write(open(ConfigParser.__conf_file, 'w'))
 
     def core(self, name, *args):
         return self._get(ConfigParser.__core, name, *args)
@@ -103,7 +121,7 @@ class ConfigParser():
         return self.get(name, default).split('|')
 
     def branches(self):
-        return self.list('branches', ConfigParser.__core)
+        return self.list(ConfigParser.__branches, ConfigParser.__core)
 
     def extra_branches(self):
         return self.list('_branches', ConfigParser.__core)
@@ -125,12 +143,32 @@ class ConfigParser():
         return ConfigParser.__cc_cfg
 
     @staticmethod
+    def git_cfg():
+        return ConfigParser.__git_cfg
+
+    @staticmethod
+    def branches_cfg():
+        return ConfigParser.__branches
+
+    @staticmethod
+    def base_dir():
+        return ConfigParser.__base_dir
+
+    @staticmethod
     def cc_dir():
-        return ConfigParser.__cc_dir
+        return ConfigParser.__cc_path
 
     @staticmethod
     def git_dir():
         return ConfigParser.__git_dir
+
+    @staticmethod
+    def git_path():
+        return ConfigParser.__git_path
+
+    @staticmethod
+    def git_repository_dir():
+        return ConfigParser.__git_repository_dir
 
     @staticmethod
     def debug():

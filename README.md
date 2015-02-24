@@ -1,6 +1,43 @@
-# git-cc
+## git-cc for migration
 
-Simple bridge between base Clearcase or UCM and Git.
+Hi, this branch of git-cc focus on migrating from ClearCase to Git. It is compiled to
+support migration of one ClearCase view with multiple branches into a new Git repository.
+
+The idea on this git-cc branch is to prepare the configuration once and then just run the command:
+
+You should start in the folder above where you want your git tree.
+
+### Configuration
+
+Start with running configure to set up environment, this will create a configuration file
+gitcc.conf in the subfolder conf.
+
+gitcc configure --cc_dir='/clearcase/proj' --git_dir='gitname', --branches='master'
+
+
+### Migration
+
+After the configuration is in place run
+
+gitcc migrate
+
+This will create a subfolder for git, initialize git and mirror the ClearCase view into
+the newly created Git folder.
+
+Now you got your newly local Git project, you probably want to put it at your preferred host.
+
+## First verify that you are in the master branch
+git checkout master
+
+# Then add the project to your favourite git host (favourite.gitsite.com) with a suitable
+# project name (projname)
+git remote add origin git@favourite.gitsite.com:projname/main.git
+git remote show origin
+
+
+## git-cc Charles O'Farrell
+
+Simple bridge between base ClearCase or UCM and Git.
 
 ## Warning
 

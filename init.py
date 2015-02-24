@@ -4,10 +4,16 @@ from git import Git
 from configuration import ConfigParser
 from common import fail
 
+ARGS = {
+    'cc_dir': 'ClearCase directory'
+}
+
 
 def main(git_cc_dir, cc_dir):
     try:
-        config=ConfigParser(git_cc_dir, 'init')
+        config = ConfigParser()
+        config.init(git_cc_dir, 'init')
+
     except:
         fail('\nGitCC already initialized')
     git = Git()

@@ -12,15 +12,15 @@ import logging
 class Cache(object):
     __config = ConfigParser()
 
-    def __init__(self, dir):
+    def __init__(self, base_dir):
         self.logger = logging.getLogger(__name__)
         self.error_logger = logging.getLogger("error")
         self.map = {}
         self.clear_case = (UCM if Cache.__config.core('type') == 'UCM' else ClearCase)()
         self.constants = GitCcConstants()
         self.git = Git()
-        self.file_name = dir + self.constants.file_separator() + self.constants.gitcc_file()
-        self.dir = dir
+        self.dir = base_dir
+        self.file_name = join(Cache.__config.base_dir(), self.constants.conf_dir(), self.constants.gitcc_file())
         self.empty = Branch('/main/0')
 
     def start(self):

@@ -20,14 +20,16 @@ class Git:
     __ci_tag = None
     __git_dir = None
 
-    def __init__(self, dir='.'):
+    def __init__(self, dir='git', branch=None):
         Git.__lock.acquire()
         self.encoding = Encoding()
         self.logger = logging.getLogger(__name__)
         self.error_logger = logging.getLogger("error")
         if not Git.__initialized:
             Git.__git_dir = dir
-            branch = self.current_branch()
+            if branch is None:
+                branch = self.current_branch()
+
             if branch.endswith('_cc'):
                 Git.__cc_tag = branch
                 Git.__ci_tag = branch.replace('_cc', '_ci')
@@ -47,6 +49,9 @@ class Git:
     @staticmethod
     def cc_tag():
         return Git.__cc_tag
+
+    def init(self):
+        self.__git_exec(['init', Git.__git_dir])
 
     def add(self, file_path):
         self.__git_exec(['add', file_path])
@@ -160,7 +165,7 @@ class Git:
         def find_dir(dir):
             if not exists(dir) or dirname(dir) == dir:
                 return '.'
-            if exists(join(dir, '.git')):
+            if exists(join(dir, GitCcConstants.git_repository_name())):
                 return dir
             return find_dir(dirname(dir))
         return find_dir(abspath('.'))

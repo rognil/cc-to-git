@@ -15,6 +15,7 @@ class GitCcConstants:
     __debug = 1
     __history_file = "lshistory.bak"
     __gitcc_file = '.gitcc'
+    __git_repository_name = '.git'
     __simulate_cc = 0
     __simulate_git = 0
     __enable_history = 1
@@ -41,6 +42,10 @@ class GitCcConstants:
     @staticmethod
     def gitcc_file():
         return GitCcConstants.__gitcc_file
+
+    @staticmethod
+    def git_repository_name():
+        return GitCcConstants.__git_repository_name
 
     @staticmethod
     def logger_level():
