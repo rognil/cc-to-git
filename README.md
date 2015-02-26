@@ -1,41 +1,77 @@
-## git-cc for migration
+# git-cc for migration
 
 Hi, this branch of git-cc focus on migrating from ClearCase to Git. It is compiled to
 support migration of one ClearCase view with multiple branches into a new Git repository.
 
-The idea on this git-cc branch is to prepare the configuration once and then just run the command:
+The idea on this git-cc branch is to prepare the configuration once and then just run one
+command to migrate the repository to Git.
 
-You should start in the folder above where you want your git tree.
+The git tree will be created in a subfolder to the directory you start from.
 
 ### Configuration
 
 Start with running configure to set up environment, this will create a configuration file
-gitcc.conf in the subfolder conf.
+gitcc.conf in the subfolder conf:
 
-gitcc configure --cc_dir='/clearcase/proj' --git_dir='gitname', --branches='master'
+    gitcc configure --cc_dir='/clearcase/proj' --git_dir='gitname', --branches='master'
 
 
 ### Migration
 
-After the configuration is in place run
+After the configuration is in place run the migration command:
 
-gitcc migrate
+    gitcc migrate
 
 This will create a subfolder for git, initialize git and mirror the ClearCase view into
 the newly created Git folder.
 
+### Add remote hosting
+
 Now you got your newly local Git project, you probably want to put it at your preferred host.
 
-## First verify that you are in the master branch
-git checkout master
+First verify that you are in the master branch:
 
-# Then add the project to your favourite git host (favourite.gitsite.com) with a suitable
-# project name (projname)
-git remote add origin git@favourite.gitsite.com:projname/main.git
-git remote show origin
+    git checkout master
+
+Then add the project to your favourite git host (favourite.gitsite.com) with a suitable
+project name (projname):
+
+    git remote add origin git@favourite.gitsite.com:projname/main.git
+    git remote show origin
+
+## Troubleshooting
+
+### Encoding
+
+This project is setup with europe encoding ISO8859-15.
+
+So you might want to change the default encoding by editing the constants.py file.
+
+That is the file:
+
+    __default_encoding = "ISO8859-15"
+
+For latin1 encoding:
+
+    __default_encoding = "ISO8859-1"
+
+For UTF-8 encoding
+
+    __default_encoding = "UTF-8"
 
 
-## git-cc Charles O'Farrell
+## TODO
+
+### Branches on branches
+
+Right now just one level of branching is supported, however this is should soon be resolved
+
+### Labels/tag
+
+This is not supported yet.
+
+
+## Original Readme for git-cc by Charles O'Farrell
 
 Simple bridge between base ClearCase or UCM and Git.
 
