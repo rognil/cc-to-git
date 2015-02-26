@@ -47,7 +47,7 @@ This project is setup with europe encoding ISO8859-15.
 
 So you might want to change the default encoding by editing the constants.py file.
 
-That is the file:
+That is the encoding:
 
     __default_encoding = "ISO8859-15"
 
