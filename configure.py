@@ -2,9 +2,10 @@
 based on input, ClearCase directory and branch info
 """
 
+__author__ = 'rognilse'
+
 from git import Git
 from configuration import ConfigParser
-from common import fail
 from os.path import join, basename
 
 ARGS = {

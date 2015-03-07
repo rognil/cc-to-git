@@ -1,3 +1,7 @@
+""" Handle IO related tasks"""
+
+__author__ = 'rognilse'
+
 from os.path import dirname, basename, exists
 from common import fail
 import os

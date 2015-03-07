@@ -1,8 +1,20 @@
 __author__ = 'rognilse'
 
+import unittest
 from configuration import ConfigParser
 
-config = ConfigParser()
-config.init()
-if not config.cc_dir() == '/clearcase/proj':
-    raise AssertionError("CC directory should have been /cearcase/proj")
+import unittest
+from changeset import Change
+from constants import GitCcConstants
+
+
+class ConfigTest(unittest.TestCase):
+
+    def test_config(self):
+        config = ConfigParser()
+        config.init()
+        self.assertTrue(config.cc_dir(), '/clearcase/proj')
+
+
+if __name__ == "__main__":
+    unittest.main()

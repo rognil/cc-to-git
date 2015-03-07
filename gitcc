@@ -9,7 +9,7 @@ from os.path import join
 import os
 
 commands = [
-    'configure', 'init', 'migrate', 'checkin', 'sync', 'reset', 'tag', 'update'
+    'configure', 'init', 'migrate', 'reset', 'tag'
 ]
 
 

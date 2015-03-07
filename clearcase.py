@@ -1,5 +1,4 @@
 from subprocess import Popen, PIPE
-from configuration import ConfigParser
 from fileio import IO
 from encoding import Encoding
 from constants import GitCcConstants
@@ -9,12 +8,13 @@ import logging
 
 class ClearCaseCommon:
 
-    def __init__(self):
+    def __init__(self, cc_dir, include):
         self.logger = logging.getLogger(__name__)
         self.error_logger = logging.getLogger("error")
 
         self.io = IO()
-        self.config = ConfigParser()
+        self.cc_dir = cc_dir
+        self.include = include
         self.encoding = Encoding()
 
     def describe_directory(self, directory):
@@ -22,7 +22,7 @@ class ClearCaseCommon:
 
     def list(self):
         ls = ['ls', '-recurse', '-short']
-        ls.extend(self.config.include())
+        ls.extend(self.include)
         return self.__cc_exec(ls)
 
     def link(self, target_file, source_file):
@@ -35,7 +35,7 @@ class ClearCaseCommon:
         lsh = ['lsh', '-fmt', '%o%m|%Nd|%u|%En|%Vn|' + ClearCase.comment_format() + '\\n', '-recurse'][:]
         if since:
             lsh.extend(['-since', since])
-        lsh.extend(self.config.include())
+        lsh.extend(self.include)
         return self.__cc_exec(lsh)
 
     def diff_directory(self, directory):
@@ -82,8 +82,8 @@ class ClearCaseCommon:
         return '%s@@%s' % (file_path, version)
 
     def __cc_exec(self, cmd, env=None, decode=True, errors=True, encode=None):
-        exe='cleartool'
-        cwd=self.config.cc_dir()
+        exe = 'cleartool'
+        cwd = self.cc_dir
         cmd.insert(0, exe)
         if self.logger.isEnabledFor(logging.DEBUG):
             f = lambda a: a if not a.count(' ') else '"%s"' % a
@@ -105,8 +105,8 @@ class ClearCaseCommon:
 
 class ClearCase(ClearCaseCommon):
 
-    def __init__(self):
-        ClearCaseCommon.__init__(self)
+    def __init__(self, cc_dir, include):
+        ClearCaseCommon.__init__(self, cc_dir, include)
 
     def rebase(self):
         pass
@@ -130,15 +130,16 @@ class ClearCase(ClearCaseCommon):
 
 class UCM(ClearCaseCommon):
 
-    def __init__(self):
-        ClearCaseCommon.__init__(self)
+    def __init__(self, cc_dir, include):
+        ClearCaseCommon.__init__(self, cc_dir, include)
         self.activities = {}
+        self.activity = None
 
     def rebase(self):
         out = self.__cc_exec(['rebase', '-rec', '-f'])
         if not out.startswith('No rebase needed'):
             self.logger.debug(out)
-            self.logger.debug(self.__cc_exec(['rebase', '-complete']))
+            self.__cc_exec(['rebase', '-complete'])
 
     def make_activity(self, comment):
         self.activity = self._activities().get(comment)
@@ -150,15 +151,14 @@ class UCM(ClearCaseCommon):
         self.activity = _comment[_comment.find('"') + 1:_comment.rfind('"')]
         self._activities()[comment] = self.activity
 
-
     def remove_activity(self):
         self.__cc_exec(['setact', '-none'])
         self.__cc_exec(['rmactivity', '-f', self.activity], errors=False)
 
     def commit(self):
         self.__cc_exec(['setact', '-none'])
-        self.logger.debug(self.__cc_exec(['deliver', '-f']))
-        self.logger.debug(self.__cc_exec(['deliver', '-com', '-f']))
+        self.__cc_exec(['deliver', '-f'])
+        self.__cc_exec(['deliver', '-com', '-f'])
 
     @staticmethod
     def comment_format():

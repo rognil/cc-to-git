@@ -16,8 +16,6 @@ class Git:
     __lock = Lock()
     __initialized = False
 
-    __cc_tag = None
-    __ci_tag = None
     __git_dir = None
 
     def __init__(self, dir='git', branch=None):
@@ -30,25 +28,8 @@ class Git:
             if branch is None:
                 branch = self.current_branch()
 
-            if branch.endswith('_cc'):
-                Git.__cc_tag = branch
-                Git.__ci_tag = branch.replace('_cc', '_ci')
-            elif branch.endswith('_ci'):
-                Git.__cc_tag = branch.replace('_ci', '_cc')
-                Git.__ci_tag = branch
-            else:
-                Git.__cc_tag = branch + '_cc'
-                Git.__ci_tag = branch + '_ci'
             Git.__initialized = True
         Git.__lock.release()
-
-    @staticmethod
-    def ci_tag():
-        return Git.__ci_tag
-
-    @staticmethod
-    def cc_tag():
-        return Git.__cc_tag
 
     def init(self):
         self.__git_exec(['init', Git.__git_dir])
@@ -93,7 +74,7 @@ class Git:
         return self.git.__git_exec(['merge-base', tag, branch]).strip()
 
     def reset(self, tag=None):
-        self.__git_exec(['reset', '--hard', tag or Git.__cc_tag])
+        self.__git_exec(['reset', '--hard', tag or 'HEAD'])
 
     def remove(self, file_path):
         self.__git_exec(['rm', '-r', file_path], errors=False)
@@ -128,15 +109,11 @@ class Git:
         if len(self.__git_exec(['ls-files', '--modified']).splitlines()) > 0:
             fail('There are uncommitted files in your git directory')
 
-    def since_date(self, default):
-        try:
-            date = self.__git_exec(['log', '-n', '1', '--pretty=format:%ai', '%s' % Git.cc_tag()])
-            date = date[:19]
-            date = datetime.strptime(date, '%Y-%m-%d %H:%M:%S')
+    def since_date(self, since):
+        if len(since) > 0:
+            date = datetime.strptime(since, '%Y-%m-%d %H:%M:%S')
             date = date + timedelta(seconds=1)
             return datetime.strftime(date, '%d-%b-%Y.%H:%M:%S')
-        except Exception:
-            return default
 
     def diff(self, identity, initial):
         cmd = ['diff', '--name-status', '-M', '-z', '--ignore-submodules', '%s^..%s' % (identity, identity)]
@@ -157,7 +134,7 @@ class Git:
         if not complete:
             log.append('--first-parent')
         if not initial:
-            log.append(Git.ci_tag() + '..')
+            log.append('..')
         return self.__git_exec(log)
 
     @staticmethod

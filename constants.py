@@ -12,14 +12,23 @@ class GitCcConstants:
     __default_logger_config = "logging.conf"
     __default_logger_level = logging.DEBUG
     __default_encoding = "ISO8859-15"
+    __default_attribute_delimiter = '|'
+    __default_version_delimiter = '/'
+
     __debug = 1
+
     __history_file = "lshistory.bak"
+
     __gitcc_file = '.gitcc'
     __git_repository_name = '.git'
+
     __simulate_cc = 0
     __simulate_git = 0
+
     __enable_history = 1
+
     __cygwin = sys.platform == 'cygwin'
+
     __fs = os.sep
     if __cygwin:
         __fs = '\\'
@@ -38,6 +47,15 @@ class GitCcConstants:
     @staticmethod
     def logger_conf_name():
         return GitCcConstants.__default_logger_config
+
+
+    @staticmethod
+    def version_delimiter():
+        return GitCcConstants.__default_version_delimiter
+
+    @staticmethod
+    def attribute_delimiter():
+        return GitCcConstants.__default_attribute_delimiter
 
     @staticmethod
     def gitcc_file():

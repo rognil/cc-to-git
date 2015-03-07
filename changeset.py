@@ -28,6 +28,7 @@ class ChangeSet:
         self.user = change.user
         self.comment = change.comment
         self.subject = change.subject
+        self.version = change.version
         self.date = change.date
         self.change_sets = []
         self.change_sets.append(change)
@@ -93,6 +94,20 @@ class Change(object):
         self.logger = logging.getLogger(__name__)
         self.error_logger = logging.getLogger("error")
 
+        # mkbranchversion|20110509.151228|proj|dir_a/src/dir_b/file_f|/main/branch_c/0|
+        # mkbranchbranch|20110509.151228|proj|dir_a/src/dir_b/file_f|/main/branch_c|
+        # mkbranchdirectory version|20110509.142023|proj|dir_a/src/dir_c/file_d|/main/branch_c/0|
+        # mkbranchbranch|20110509.142023|proj|dir_a/src/dir_c/file_d|/main/branch_c|
+        # checkindirectory version|20110509.112451|proj|dir_h|/main/branch_a/branch_c/1|Added directory "dir_h".
+        # checkinversion|20110509.103538|proj|dir_a/src/dir_d/file_c|/main/branch_c/1|Added file "file_c".
+        # mkbranchversion|20110509.103434|proj|dir_a/src/dir_d/file_c|/main/branch_c/0|
+        # mkbranchbranch|20110509.103434|proj|dir_a/src/dir_d/file_c|/main/branch_c|
+        # checkinversion|20110427.173416|proj|dir_e/file_b|/main/branch_b/branch_c/2|
+        # checkinversion|20110427.170355|proj|dir_a/src/dir_d/file_a|/main/branch_c/1|
+        # mkbranchversion|20110427.170117|proj|dir_a/src/dir_d/file_a|/main/branch_c/0|
+        # mkbranchbranch|20110427.170117|proj|dir_a/src/dir_d/file_a|/main/branch_c|
+
+
         self.date = split[1]
         self.user = split[2]
         self.file = split[3]
@@ -106,7 +121,7 @@ class Change(object):
         # first = version.rfind(GitCcConstants.version_delimiter())
         last = version.rfind(GitCcConstants.version_delimiter())
         b = version[1:last].replace(GitCcConstants.version_delimiter(), '_')
-        return b
+        return b if not b == 'main' else 'master'
 
     def to_string(self):
         return "User=%s, Version=%s, File=%s, branch %s" % (self.user, self.version, self.file, self.branch)
@@ -180,6 +195,7 @@ class Uncataloged(Change):
         diff = self.clear_case.diff_directory(directory)
 
         for line in diff.split('\n'):
+            self.logger.info("UC-%s, Parsing line: '%s'" % (self.branch, line))
             sym = line.find(' -> ')
             if sym >= 0:
                 continue
@@ -199,6 +215,7 @@ class Uncataloged(Change):
 
                 date = self.clear_case.describe_directory(directory)
                 actual_versions = self.filter_versions(all_versions, lambda x: x[1] < date)
+                self.logger.info("Actual version '%s'" % (str(actual_versions)))
 
                 versions = self.check_in_versions(actual_versions)
                 if not versions:

@@ -1,14 +1,19 @@
-from changeset import ChangeSet
+__author__ = 'rognilse'
+
+import unittest
+from changeset import Change
 from constants import GitCcConstants
 
 
-def main():
-    line = 'checkindirectory version|20110427.150714|user|/clearcase/proj/dir/util|/main/proj/2|Added element "mkdefs.sparcv9".'
-    split = line.split(GitCcConstants.attribute_delimiter())
+class VersionTest(unittest.TestCase):
 
-    cs = ChangeSet(None, None, None, None, split, '')
-    print cs.branch
+    def test_version(self):
+        line = 'checkindirectory version|20110427.150714|user|/clearcase/proj/dir/util|/main/proj/subproj/2|Added element "mkdefs.sparcv9".'
+        split = line.split(GitCcConstants.attribute_delimiter())
+        cs = Change(None, None, None, None, split, '')
+        print 'Branch %s' % cs.branch
+        self.assertTrue(cs.branch == 'proj_subproj')
 
 
-if __name__ == '__main__':
-    main()
+if __name__ == "__main__":
+    unittest.main()

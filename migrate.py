@@ -8,9 +8,8 @@ from git import Git
 from fileio import IO
 from configuration import ConfigParser
 from encoding import Encoding
-from changeset import ChangeSet, Uncataloged, Group
+from changeset import Change, Uncataloged, ChangeSet
 from constants import GitCcConstants
-from common import fail
 
 import logging
 logger = logging.getLogger(__name__)
@@ -22,8 +21,6 @@ Things remaining:
 1. Renames with no content change. Tricky.
 """
 
-
-DELIM = '|'
 
 ARGS = {
     'stash': 'Wraps the migration in a stash to avoid file changes being lost',
@@ -39,7 +36,7 @@ def main(git_cc_dir='.', stash=False, dry_run=False, lshistory=False, load=None)
     config = ConfigParser()
     config.init(base_dir)
     git = Git(config.git_path())
-    clear_case = ClearCase()
+    clear_case = ClearCase(config.cc_dir(), config.include())
     io = IO()
 
     io.make_directory(config.git_path())
@@ -57,7 +54,7 @@ def main(git_cc_dir='.', stash=False, dry_run=False, lshistory=False, load=None)
     if config.core('cache', True) == 'False':
         cache = NoCache()
     else:
-        cache = Cache(config.git_dir())
+        cache = Cache(config.base_dir(), config.branches(), config.core('type'), config.cc_dir(), config.include())
 
     config.validate_cc()
     if not (stash or dry_run or lshistory):
@@ -65,7 +62,7 @@ def main(git_cc_dir='.', stash=False, dry_run=False, lshistory=False, load=None)
 
     clear_case.update()
 
-    since = git.since_date(config.get('since'))
+    since = git.since_date(config.since())
     cache.start()
     if load:
         history = open(load, 'r').read().decode(Encoding.encoding())
@@ -78,61 +75,77 @@ def main(git_cc_dir='.', stash=False, dry_run=False, lshistory=False, load=None)
     if lshistory:
         print(history)
     else:
-        change_set = parse_history(cache, config, clear_case, git, history)
-        change_set = reversed(change_set)
-        change_set = merge_history(cache, clear_case, git, change_set)
+        changes = parse_history(cache, config, clear_case, git, history)
+        changes = reversed(changes)
+        change_sets = group_history(cache, clear_case, git, changes)
         if dry_run:
-            print_groups(change_set)
+            print_change_sets(change_sets)
             io.cd(base_dir)
             return
-        if not len(change_set):
-            print "Change set failed"
+        if not len(change_sets):
+            logger.warning("No changes, change set failed")
             io.cd(base_dir)
             return
-        git.stash(lambda: do_commit(change_set, git), stash)
+        git.stash(lambda: do_commit(change_sets, git), stash)
     io.cd(base_dir)
 
 
-def do_commit(change_set, git):
+def do_commit(change_sets, git):
 
-    """Commit change set to Git"""
-    for cs in change_set:
-        branch = git.current_branch()
+    """ Commit change sets to Git
+    :param change_sets:
+    :param git:
+    :return:
+    """
+
+    branch = git.current_branch()
+    for cs in change_sets:
         logger.debug("Change set branch: %s" % branch)
         if branch != cs.branch:
-            if not cs.branch is None:
+            if cs.branch is not None:
                 branch = cs.branch
                 try:
                     git.check_out(branch)
+                    logger.info("Commit change set on branch: %s" % branch)
                 except Exception as e:
                     git.branch(branch)
                     git.check_out(branch)
-        logger.debug("Commit change set on branch: %s" % branch)
+                    logger.info("Commit change set on branch: %s" % branch)
         cs.commit()
 
 
 def parse_history(cache, config, clear_case, git, lines):
+    """ Read changes from file
+
+    :param cache:
+    :param config:
+    :param clear_case:
+    :param git:
+    :param lines:
+    :return:
+    """
 
     types = {
-        'checkinversion': ChangeSet,
+        'checkinversion': Change,
         'checkindirectory version': Uncataloged,
     }
 
-    change_sets = []
+    changes = []
 
     def add(_cache, _config, _clear_case, _git, _split, _comment):
         if not _split:
             return
-        cstype = _split[0]
-        if cstype in types:
-            cs = types[cstype](_cache, _config, _clear_case, _git, _split, _comment)
+        cs_type = _split[0]
+        if cs_type in types:
+            cs = types[cs_type](_cache, _config, _clear_case, _git, _split, _comment)
             try:
-                branch = cs.filter_branches(_config, cs.version)
+                branch = cs.filter_branches(_config, cs)
                 logger.debug('Parse history %s to branch %s', cs.to_string(), branch)
                 if branch is not None:
-                    cs.branch = branch
                     logger.info('Append change set: %s', cs.to_string())
-                    change_sets.append(cs)
+                    changes.append(cs)
+                else:
+                    logger.warning('Skip line with no branch: %s', cs.to_string)
             except Exception as e:
                 error_logger.warn('Bad line %s, %s' % (_split, _comment))
                 raise
@@ -140,38 +153,46 @@ def parse_history(cache, config, clear_case, git, lines):
     last = None
     comment = None
     for line in lines.splitlines():
-        split = line.split(DELIM)
+        split = line.split(GitCcConstants.attribute_delimiter())
         if len(split) < 6 and last:
             # Cope with comments with '|' character in them
-            comment += "\n" + DELIM.join(split)
+            comment += "\n" + GitCcConstants.attribute_delimiter().join(split)
         else:
             add(cache, config, clear_case, git, last, comment)
-            comment = DELIM.join(split[5:])
+            comment = GitCcConstants.attribute_delimiter().join(split[5:])
             last = split
     add(cache, config, clear_case, git, last, comment)
+    return changes
+
+
+def group_history(cache, clear_case, git, changes):
+    """ Group history into change sets
+    :param cache:
+    :param clear_case:
+    :param git:
+    :param changes:
+    :return:
+    """
+    last = None
+    change_sets = []
+
+    def same_change_set(a, b):
+        return a.subject == b.subject and a.user == b.user and a.version == b.version
+
+    for change in changes:
+        if last and same_change_set(last, change):
+            last.append(change)
+        else:
+            last = ChangeSet(cache, clear_case, git, change)
+            change_sets.append(last)
+    for cs in change_sets:
+        cs.fix_comment()
     return change_sets
 
 
-def merge_history(cache, clear_case, git, change_sets):
-    last = None
-    groups = []
-
-    def same(a, b):
-        return a.subject == b.subject and a.user == b.user and a.branch == b.branch
-
-    for change in change_sets:
-        if last and same(last, change):
-            last.append(change)
-        else:
-            last = Group(cache, clear_case, git, change)
-            groups.append(last)
-    for group in groups:
-        group.fix_comment()
-    return groups
-
-
-def print_groups(groups):
-    for cs in groups:
-        print('%s "%s"' % (cs.user, cs.subject))
-        for f in cs.files:
-            print("  %s" % f.file)
+def print_change_sets(change_sets):
+    for cs in change_sets:
+        logger.info('%s "%s" %s' % (cs.user, cs.subject, cs.branch))
+        if cs.changes():
+            for f in cs.changes():
+                logger.info("  %s" % f.file)

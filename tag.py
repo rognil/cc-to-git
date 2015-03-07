@@ -12,4 +12,4 @@ def main(git_cc_dir, tag):
     config = ConfigParser()
     config.init(git_cc_dir)
     git = Git()
-    git.tag(ConfigParser.ci_tag(), tag)
+    git.tag(tag)

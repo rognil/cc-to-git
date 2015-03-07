@@ -1,3 +1,7 @@
+""" Initialize logging"""
+
+__author__ = 'rognilse'
+
 import logging
 import logging.config
 from threading import Lock

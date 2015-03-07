@@ -33,10 +33,25 @@ class ConfigParser():
 
     __git_path = './git'
 
-    __core = 'git_cc_core'
+    __core_section = 'git_cc_core'
+
+    # /ClearCase/project
     __cc_cfg = 'clearcase'
+
+    # /home/login/git-cc/gitproject
     __git_cfg = 'git'
-    __branches = 'branches'
+
+    # main|branch1|branch2|branch3
+    __branches_cfg = 'branches'
+
+    __extra_branches_cfg = '_branches'
+
+    # %Y-%m-%d %H:%M:%S - 2014-03-23 04:03:01
+    __since_cfg = 'since'
+
+    __include_cfg = 'include'
+
+    __exclude_cfg = 'exclude'
 
     __conf_file = 'conf/gitcc.conf'
     __debug = constants.GitCcConstants().debug()
@@ -48,7 +63,7 @@ class ConfigParser():
     __parser = None
 
     def __init__(self):
-        self.section = self.__core
+        self.section = self.__core_section
 
     def init(self, base_dir=os.getcwd(), mode=None, git_dir=None):
         ConfigParser.__lock.acquire()
@@ -80,16 +95,15 @@ class ConfigParser():
             #if not exists(join(ConfigParser.__git_dir, constants.GitCcConstants.git_repository_name())):
             #    fail("fatal: Not a git repository (or any of the parent directories): .git")
 
-            print '\n'
-            print 'GitCC Dir: ', ConfigParser.__base_dir
-            print 'GitCC Conf: ', ConfigParser.__conf_file
-            print 'Git Path: ', ConfigParser.__git_path
-            print 'CC Path: ', ConfigParser.__cc_path
-            print 'Git Dir: ', ConfigParser.__git_dir
-            print 'Section: ', self.section
-            print 'Branches: ', self.branches()
-            print '\n'
-            print 'Environment', os.environ
+            logger.info('\n')
+            logger.info('GitCC Dir: %s' % ConfigParser.__base_dir)
+            logger.info('GitCC Conf: %s' % ConfigParser.__conf_file)
+            logger.info('Config Section: %s' % self.section)
+            logger.info('CC Path: %s' % ConfigParser.__cc_path)
+            logger.info('Git Dir: %s' % ConfigParser.__git_dir)
+            logger.info('Branches: %s' % self.branches())
+            logger.info('\n')
+            logger.info('Environment: %s' % os.environ)
 
             ConfigParser.__initialized = True
         ConfigParser.__lock.release()
@@ -112,7 +126,7 @@ class ConfigParser():
         ConfigParser.__parser.write(open(ConfigParser.__conf_file, 'w'))
 
     def core(self, name, *args):
-        return self._get(ConfigParser.__core, name, *args)
+        return self._get(ConfigParser.__core_section, name, *args)
 
     def get(self, name, *args):
         return self._get(self.section, name, *args)
@@ -121,16 +135,19 @@ class ConfigParser():
         return self.get(name, default).split('|')
 
     def branches(self):
-        return self.list(ConfigParser.__branches, ConfigParser.__core)
+        return self.list(ConfigParser.__branches_cfg)
 
     def extra_branches(self):
-        return self.list('_branches', ConfigParser.__core)
+        return self.list(ConfigParser.__extra_branches_cfg)
+
+    def since(self):
+        return self.core(ConfigParser.__since_cfg, '')
 
     def include(self):
-        return self.core('include', '.').split('|')
+        return self.core(ConfigParser.__include_cfg, '.').split('|')
 
     def exclude(self):
-        return self.core('exclude', '.').split('|')
+        return self.core(ConfigParser.__exclude_cfg, '.').split('|')
 
     @staticmethod
     def _get(section, name, default=None):
@@ -148,7 +165,7 @@ class ConfigParser():
 
     @staticmethod
     def branches_cfg():
-        return ConfigParser.__branches
+        return ConfigParser.__branches_cfg
 
     @staticmethod
     def base_dir():

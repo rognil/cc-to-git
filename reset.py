@@ -1,4 +1,4 @@
-"""Reset hard to a specific change set"""
+"""Reset hard to a specific tag"""
 
 from git import Git
 
@@ -9,5 +9,4 @@ ARGS = {
 
 def main(git_cc_dir, tag):
     git = Git()
-    git.branch(git.cc_tag(), tag)
-    git.tag(git.ci_tag(), tag)
+    git.check_out(tag)
