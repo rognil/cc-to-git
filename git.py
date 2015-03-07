@@ -16,6 +16,8 @@ class Git:
     __lock = Lock()
     __initialized = False
 
+    __default_branch = 'master'
+
     __git_dir = None
 
     def __init__(self, dir='git', branch=None):
@@ -23,16 +25,24 @@ class Git:
         self.encoding = Encoding()
         self.logger = logging.getLogger(__name__)
         self.error_logger = logging.getLogger("error")
+
         if not Git.__initialized:
             Git.__git_dir = dir
             if branch is None:
-                branch = self.current_branch()
+                self.active_branch = self.current_branch()
 
             Git.__initialized = True
         Git.__lock.release()
 
     def init(self):
         self.__git_exec(['init', Git.__git_dir])
+
+    @staticmethod
+    def default_branch():
+        return Git.__default_branch
+
+    def current_branch(self):
+        return self.active_branch()
 
     def add(self, file_path):
         self.__git_exec(['add', file_path])
@@ -58,8 +68,9 @@ class Git:
     def tag(self, tag, identity="HEAD"):
         self.__git_exec(['tag', '-f', tag, identity])
 
-    def check_out(self, tag):
-        self.__git_exec(['checkout', tag])
+    def check_out(self, branch):
+        self.__git_exec(['checkout', branch])
+        self.active_branch = branch
 
     def rebase(self, tag_old, tag_new):
         self.__git_exec(['rebase', tag_old, tag_new])
@@ -86,15 +97,21 @@ class Git:
         if stash:
             self.__git_exec(['stash', 'pop'])
 
+    def tags(self):
+        return self.__git_exec(['tag']).split('\n')
+
+    def branches(self):
+        return self.__git_exec(['branch']).split('\n')
+
     def current_branch(self):
-        for branch in self.__git_exec(['branch']).split('\n'):
+        for branch in self.branches():
             if branch.startswith('*'):
                 branch = branch[2:]
                 if branch == '(no branch)':
                     fail("Why aren't you on a branch?")
                 self.logger.debug("Current branch: %s", branch)
                 return branch
-        return "master"
+        return Git.__default_branch
 
     def blob(self, sha, blob_file):
         return self.__git_exec(['ls-tree', '-z', sha, blob_file]).split(' ')[2].split('\t')[0]

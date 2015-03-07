@@ -107,10 +107,11 @@ class Change(object):
         # mkbranchversion|20110427.170117|proj|dir_a/src/dir_d/file_a|/main/branch_c/0|
         # mkbranchbranch|20110427.170117|proj|dir_a/src/dir_d/file_a|/main/branch_c|
 
-
         self.date = split[1]
         self.user = split[2]
         self.file = split[3]
+        if self.file.startswith('/'):
+            self.file = self.file[len(self.config.cc_dir())+1:]
         self.version = split[4]
         self.branch = Change.compile_branch(self.version)
         self.comment = comment
@@ -133,9 +134,9 @@ class Change(object):
         """ Add file to Git """
 
         # Check if file is on this branch
-        if not self.cache.check_and_update_path_in_current_branch(CCFile(file_path, version)):
-
+        if not self.cache.check_and_update_path_in_current_branch(CCFile(file_path, version, self.config.cc_dir())):
             return
+
         if [e for e in self.config.exclude() if fnmatch(file_path, e)]:
             return
 
@@ -259,3 +260,41 @@ class Uncataloged(Change):
     def parse_history(history_arr):
         return list(map(lambda x: x.split('|'), history_arr))
 
+
+class Branch(Change):
+    def __init__(self, cache, config, clear_case, git, split, comment):
+        Change.__init__(self, cache, config, clear_case, git, split, comment)
+
+    def add(self, files):
+        self.make_branch()
+
+    def make_branch(self):
+        for branch in self.git.branches():
+            if branch.startswith('*'):
+                branch = branch[2:]
+            if branch == self.branch:
+                return
+        current = self.git.current_branch()
+        self.git.check_out(self.git.default_branch())
+        self.git.branch(self.branch)
+        self.git.check_out(current)
+
+
+class Tag(Change):
+
+    def __init__(self, cache, config, clear_case, git, split, comment):
+        Change.__init__(self, cache, config, clear_case, git, split, comment)
+
+    def add(self, files):
+        self.make_tag()
+
+    def make_tag(self):
+        for tag in self.git.tags():
+            if tag.startswith('*'):
+                tag = tag[2:]
+            if tag == self.branch:
+                return
+        current = self.git.current_branch()
+        self.git.check_out(self.git.default_branch())
+        self.git.tag(self.file)
+        self.git.check_out(current)

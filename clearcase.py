@@ -32,7 +32,11 @@ class ClearCaseCommon:
         return self.__cc_exec(['lshistory', '-fmt', '%o%m|%Nd|%Vn\\n', added], errors=False)
 
     def fetch_history(self, since):
-        lsh = ['lsh', '-fmt', '%o%m|%Nd|%u|%En|%Vn|' + ClearCase.comment_format() + '\\n', '-recurse'][:]
+        """ Fetch history branches and labels (tags) included
+        :param since:
+        :return:
+        """
+        lsh = ['lsh', '-fmt', '%o%m|%Nd|%u|%En|%Vn|' + ClearCase.comment_format() + '\\n', '-all'][:]
         if since:
             lsh.extend(['-since', since])
         lsh.extend(self.include)

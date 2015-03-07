@@ -8,7 +8,7 @@ from git import Git
 from fileio import IO
 from configuration import ConfigParser
 from encoding import Encoding
-from changeset import Change, Uncataloged, ChangeSet
+from changeset import Change, Uncataloged, Branch, Tag, ChangeSet
 from constants import GitCcConstants
 
 import logging
@@ -51,10 +51,10 @@ def main(git_cc_dir='.', stash=False, dry_run=False, lshistory=False, load=None)
 
     print '\nGit and ClearCase successfully initialized'
 
-    if config.core('cache', True) == 'False':
-        cache = NoCache()
-    else:
+    if config.core('cache', True) == 'True':
         cache = Cache(config.base_dir(), config.branches(), config.core('type'), config.cc_dir(), config.include())
+    else:
+        cache = NoCache()
 
     config.validate_cc()
     if not (stash or dry_run or lshistory):
@@ -128,6 +128,8 @@ def parse_history(cache, config, clear_case, git, lines):
     types = {
         'checkinversion': Change,
         'checkindirectory version': Uncataloged,
+        'mkbranchbranch': Branch,
+        'mktypelabel type': Tag,
     }
 
     changes = []
@@ -139,13 +141,16 @@ def parse_history(cache, config, clear_case, git, lines):
         if cs_type in types:
             cs = types[cs_type](_cache, _config, _clear_case, _git, _split, _comment)
             try:
-                branch = cs.filter_branches(_config, cs)
-                logger.debug('Parse history %s to branch %s', cs.to_string(), branch)
-                if branch is not None:
-                    logger.info('Append change set: %s', cs.to_string())
-                    changes.append(cs)
+                if cs_type != 'mktypelabel type':
+                    branch = cs.filter_branches(_config, cs)
+                    logger.debug('Parse history %s to branch %s', cs.to_string(), branch)
+                    if branch is not None:
+                        logger.info('Append change set: %s', cs.to_string())
+                        changes.append(cs)
+                    else:
+                        logger.warning('Skip line with no branch: %s', cs.to_string)
                 else:
-                    logger.warning('Skip line with no branch: %s', cs.to_string)
+                    changes.append(cs)
             except Exception as e:
                 error_logger.warn('Bad line %s, %s' % (_split, _comment))
                 raise

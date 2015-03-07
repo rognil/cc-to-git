@@ -25,11 +25,30 @@ Or just create the conf/gitcc.conf file.
     git = /home/username/git-cc/proj
     branches = main|1.1.0|Linux|pgsql|work
 
+### Include
+
+You can choose to include a subset of folders
+
+    include = FolderA|FolderB
+
+### Exclude
+
+You can choose to exclude a subset of folders
+
+    exclude = FolderA/sub/folder|FolderB/other/file
+
+
 #### User configuration
 
 You need to add a mapping for each user in your clearcase history to conf/users.py, look at the users.py.example file
 to get an idea about the syntax.
 
+    users = {
+        'charles': "Charles Smith",\
+        'js': 'Jan Smith <jan.smith@dummy.xxx>',\
+    }
+
+    mailSuffix = 'dummy.xxx'
 
 ### Migration
 
@@ -74,15 +93,16 @@ For UTF-8 encoding
 
     __default_encoding = "UTF-8"
 
+
 ## NOTICE!
+
+### Branches
 
 Branches get flattened, that is branch_a/sub_branch_a/sub_branch_a_b will be a new level one branch called branch_a_sub_branch_a_sub_branch_a_b
 
-## TODO
-
 ### Labels / Tags
 
-This is not supported yet.
+All tags will end up on the main branch :(.
 
 ## Problems
 
@@ -94,10 +114,10 @@ as it is likely everything won't compile. Other Clearcase importers seem
 restricted by the same problem, but none-the-less it is most frustrating. Grr!
 
 
-
 ## Parts of the original Readme for git-cc by Charles O'Farrell, refactored to match new conditions
 
-## Warning
+
+### Warning
 
 Also, I have made a change recently to support adding binary files which uses
 git-cat. Unfortunately git-cat doesn't handle end line conversions and so I
@@ -105,43 +125,8 @@ have made gitcc init set core.autocrlf to false. This is only relevant for
 Windows users. Don't try changing this after your first commit either as it
 will only make matters worse. My apologies to anyone that is stung by this.
 
-Other:
 
-These are two useful flags for rebase which is use quite frequently.
-
-    gitcc migrate --stash
-
-Runs stash before the rebase, and pops it back on afterwards.
-
-    gitcc migrate --dry-run
-
-Prints out the list of commits and modified files that are pending in clearcase.
-
-
-Note that the CC label will be moved to the new version of the element, if it is already used.
-
-## Configuration
-
-You need to add a mapping for each user in your clearcase history to users.py.
-You can also limit which branches and folders you import from.
-eg. .git/gitcc
-
-    [core]
-    include = FolderA|FolderB
-    exclude = FolderA/sub/folder|FolderB/other/file
-    debug = False
-    type = UCM
-    [master]
-    clearcase = D:\views\co4222_flex\rd_poc
-    branches = main|ji_dev|ji_*_dev|iteration_*_dev
-    [sup]
-    clearcase = D:\views\co4222_sup\rd_poc
-    branches = main|sup
-
-In this case there are two separate git branches, master and sup, which
-correspond to different folders/branches in clearcase.
-
-## Notes
+### Notes
 
 Can either work with static or dynamic views. I use dynamic at work because
 it's much faster not having to update. I've done an update in rebase anyway,
@@ -154,7 +139,7 @@ any activity information. This is largely for convenience for me so I don't have
 to rewrite everything. Therefore things like 'recommended' baselines are ignored.
 I don't know if this will cause any major dramas or not.
 
-## Troubleshooting
+### Troubleshooting
 
 1. WindowsError: [Error 2] The system cannot find the file specified
 

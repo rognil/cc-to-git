@@ -15,15 +15,16 @@ class Cache(object):
         self.error_logger = logging.getLogger("error")
         self.branches = branches
         self.map = {}
+        self.cc_dir = cc_dir
         self.clear_case = (UCM if cc_type == 'UCM' else ClearCase)(cc_dir, include)
         self.constants = GitCcConstants()
         self.git = Git()
         self.dir = base_dir
-        self.file_name = join(base_dir, self.constants.conf_dir(), self.constants.gitcc_file())
-        self.empty = Branch('/main/0')
+        self.cache_file_name = join(base_dir, self.constants.conf_dir(), self.constants.gitcc_file())
+        self.empty = CCBranch('/main/0')
 
     def start(self):
-        f = join(self.dir, self.file_name)
+        f = join(self.dir, self.cache_file_name)
         if exists(f):
             self.load(f)
         else:
@@ -44,7 +45,7 @@ class Cache(object):
         for line in lines.splitlines():
             if line.find('@@') < 0:
                 continue
-            self.check_and_update_path_in_current_branch(CCFile2(line))
+            self.check_and_update_path_in_current_branch(CCFile2(line, self.cc_dir))
 
     def check_and_update_path_in_current_branch(self, path):
         is_child = self.map.get(path.file_name, self.empty).child(path.version)
@@ -62,7 +63,7 @@ class Cache(object):
         keys = sorted(keys)
         for file_name in keys:
             lines.append(file_name + '@@' + self.map[file_name].full)
-        f = open(join(self.dir, self.file_name), 'w')
+        f = open(join(self.dir, self.cache_file_name), 'w')
         try:
             f.write('\n'.join(lines))
             f.write('\n')
@@ -74,7 +75,7 @@ class Cache(object):
     def list(self):
         values = []
         for file_name, version in self.map.items():
-            values.append(CCFile(file_name, version.full))
+            values.append(CCFile(file_name, version.full, self.cc_dir))
         return values
 
     def contains(self, path):
@@ -96,22 +97,24 @@ class NoCache(object):
 
 
 class CCFile(object):
-    def __init__(self, file_name, version):
+    def __init__(self, file_name, version, cc_dir):
         self.logger = logging.getLogger(__name__)
-        if file_name.startswith('./') or file_name.startswith('.\\'):
+        if file_name.startswith('/'):
+            file_name = file_name[len(cc_dir)+1:]
+        elif file_name.startswith('./') or file_name.startswith('.\\'):
             file_name = file_name[2:]
         self.file_name = file_name
-        self.version = Branch(version)
+        self.version = CCBranch(version)
         self.logger.debug("File: %s, Version: %s", self.file_name, self.version.version)
 
 
 class CCFile2(CCFile):
-    def __init__(self, line):
+    def __init__(self, line, cc_dir):
         [file_name, version] = line.rsplit('@@', 1)
-        super(CCFile2, self).__init__(file_name, version)
+        super(CCFile2, self).__init__(file_name, version, cc_dir)
 
 
-class Branch(object):
+class CCBranch(object):
     """ The branch to which a change set belongs """
 
     def __init__(self, version):

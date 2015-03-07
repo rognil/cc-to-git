@@ -3,10 +3,10 @@
 from git import Git
 
 ARGS = {
-    'tag': 'The tag name'
+    'branch': 'The active branch'
 }
 
 
-def main(git_cc_dir, tag):
+def main(git_cc_dir, branch):
     git = Git()
-    git.check_out(tag)
+    git.check_out(branch)
