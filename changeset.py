@@ -14,7 +14,76 @@ from fileio import IO
 from conf.users import users, mailSuffix
 
 
-class ChangeSet(object):
+class ChangeSet:
+    """ Group files to change sets so that the commit gets atomic"""
+
+    def __init__(self, cache, clear_case, git, change):
+
+        self.logger = logging.getLogger(__name__)
+        self.error_logger = logging.getLogger("error")
+
+        self.cache = cache
+        self.clear_case = clear_case
+        self.git = git
+        self.user = change.user
+        self.comment = change.comment
+        self.subject = change.subject
+        self.date = change.date
+        self.change_sets = []
+        self.change_sets.append(change)
+        self.branch = change.branch
+
+    def append(self, cs):
+        self.date = cs.date
+        self.change_sets.append(cs)
+
+    def changes(self):
+        return self.change_sets
+
+    def fix_comment(self):
+        self.comment = self.clear_case.comment(self.comment)
+        self.subject = self.comment.split('\n')[0]
+
+    def commit(self):
+        def commit_date(date):
+            d = date[:4] + '-' + date[4:6] + '-' + date[6:8] + ' ' + date[9:11] + ':' + date[11:13] + ':' + date[13:15]
+            return d
+
+        def user_name(username):
+            return str(username).split(' <')[0]
+
+        def user_email(username):
+            email = search('<.*@.*>', str(username))
+            if email is None:
+                return '<%s@%s>' % (username.lower().replace(' ', '.').replace("'", ''), mailSuffix)
+            else:
+                return email.group(0)
+
+        files = []
+        for cs in self.change_sets:
+            files.append(cs.file)
+        # Add files to git
+        for cs in self.change_sets:
+            cs.add(files)
+        self.cache.write()
+        env = os.environ
+        user = users.get(self.user, self.user)
+        env['GIT_AUTHOR_DATE'] = env['GIT_COMMITTER_DATE'] = str(commit_date(self.date))
+        env['GIT_AUTHOR_NAME'] = env['GIT_COMMITTER_NAME'] = user_name(user)
+        env['GIT_AUTHOR_EMAIL'] = env['GIT_COMMITTER_EMAIL'] = str(user_email(user))
+        comment = self.comment if self.comment.strip() != "" else "<empty message>"
+
+        # Commit files to Git
+        try:
+            self.git.commit(comment, env=env)
+
+        except Exception as e:
+            self.error_logger.error('Error: %s' % e)
+            if search('nothing( added)? to commit', e.args[0]) is None:
+                raise
+
+
+class Change(object):
     def __init__(self, cache, config, clear_case, git, split, comment):
         self.cache = cache
         self.config = config
@@ -28,9 +97,16 @@ class ChangeSet(object):
         self.user = split[2]
         self.file = split[3]
         self.version = split[4]
-        self.branch = None
+        self.branch = Change.compile_branch(self.version)
         self.comment = comment
         self.subject = comment.split('\n')[0]
+
+    @staticmethod
+    def compile_branch(version):
+        # first = version.rfind(GitCcConstants.version_delimiter())
+        last = version.rfind(GitCcConstants.version_delimiter())
+        b = version[1:last].replace(GitCcConstants.version_delimiter(), '_')
+        return b
 
     def to_string(self):
         return "User=%s, Version=%s, File=%s, branch %s" % (self.user, self.version, self.file, self.branch)
@@ -43,21 +119,24 @@ class ChangeSet(object):
 
         # Check if file is on this branch
         if not self.cache.check_and_update_path_in_current_branch(CCFile(file_path, version)):
+
             return
         if [e for e in self.config.exclude() if fnmatch(file_path, e)]:
             return
-        #to_file_path = self.config.path(file_path)
+
         to_file_path = self.config.path(join(ConfigParser.git_path(), file_path))
         IO.make_directories(to_file_path)
         IO.remove_file(to_file_path)
         try:
             # Checkout ClearCase file
-            self.clear_case.get_file(to_file_path, ChangeSet.prepare_cc_file(join(ConfigParser.cc_dir(), file_path), version))
-        except:
+            self.clear_case.get_file(to_file_path,
+                                     Change.prepare_cc_file(join(ConfigParser.cc_dir(), file_path), version))
+        except Exception:
             if len(file_path) < 200:
                 self.error_logger.warn('Caught error adding %s' % file_path)
                 raise
-            self.logger.debug("Ignoring %s as it may be related to https://github.com/charleso/git-cc/issues/9" % file_path)
+            self.logger.debug("Ignoring %s as it may be related to https://github.com/charleso/git-cc/issues/9" %
+                              file_path)
         if not exists(to_file_path):
             self.git.check_out_file(to_file_path)
         else:
@@ -69,9 +148,11 @@ class ChangeSet(object):
     def prepare_cc_file(file_path, version):
         return '%s@@%s' % (file_path, version)
 
-    def filter_branches(self, config, version, complete=False):
-        version = version.split(GitCcConstants.file_separator())
+    def filter_branches(self, config, cs, complete=False):
+        version = cs.version.split(GitCcConstants.version_delimiter())
+        self.logger.debug('Version: %s, %s', version, complete)
         version.pop()
+        self.logger.debug('Version: %s', version)
         version = version[-1]
         branches = config.branches()
         if complete:
@@ -81,21 +162,21 @@ class ChangeSet(object):
                 self.logger.debug('Branch match: %s, %s', version, complete)
                 if branch == 'main':
                     return 'master'
-                return branch
+                return cs.branch
         self.logger.debug('Branch skip: %s, %s', version, complete)
         return None
 
 
-class Uncataloged(ChangeSet):
+class Uncataloged(Change):
 
     def __init__(self, cache, config, clear_case, git, split, comment):
-        ChangeSet.__init__(self, cache, config, clear_case, git, split, comment)
+        Change.__init__(self, cache, config, clear_case, git, split, comment)
 
     def get_file(self, line):
         return join(self.file, line[2:max(line.find('  '), line.find(GitCcConstants.file_separator() + ' '))])
 
     def add(self, files):
-        directory = self.config.path(ChangeSet.prepare_cc_file(self.file, self.version))
+        directory = self.config.path(Change.prepare_cc_file(self.file, self.version))
         diff = self.clear_case.diff_directory(directory)
 
         for line in diff.split('\n'):
@@ -121,11 +202,13 @@ class Uncataloged(ChangeSet):
 
                 versions = self.check_in_versions(actual_versions)
                 if not versions:
-                    print("No proper versions of '%s' file. Check if it is empty." % added)
                     versions = self.empty_file_versions(actual_versions)
+                    self.logger.info("No proper versions of '%s' file. Check if it is empty. V: %s, Actual V: %s" %
+                                     (added, versions, actual_versions))
                 if not versions:
-                    print("It appears that you may be missing a branch "
-                          "in the includes section of your gitcc config for file '%s'." % added)
+                    self.logger.warn("It appears that you may be missing a branch "
+                                     "in the includes section of your gitcc config for file '%s'. Actual V: %s"
+                                     % (added, actual_versions))
                     continue
                 self._add(added, versions[0][2].strip())
 
@@ -159,67 +242,3 @@ class Uncataloged(ChangeSet):
     def parse_history(history_arr):
         return list(map(lambda x: x.split('|'), history_arr))
 
-
-class Group:
-    """ Group files so that the commit gets atomic"""
-
-    def __init__(self, cache, clear_case, git, cs):
-
-        self.logger = logging.getLogger(__name__)
-        self.error_logger = logging.getLogger("error")
-
-        self.cache = cache
-        self.clear_case = clear_case
-        self.git = git
-        self.user = cs.user
-        self.comment = cs.comment
-        self.subject = cs.subject
-        self.date = cs.date
-        self.cs_files = []
-        self.cs_files.append(cs)
-        self.branch = cs.branch
-
-    def append(self, cs):
-        self.date = cs.date
-        self.cs_files.append(cs)
-
-    def fix_comment(self):
-        self.comment = self.clear_case.comment(self.comment)
-        self.subject = self.comment.split('\n')[0]
-
-    def commit(self):
-        def commit_date(date):
-            return date[:4] + '-' + date[4:6] + '-' + date[6:8] + ' ' + date[9:11] + ':' + date[11:13] + ':' + date[13:15]
-
-        def user_name(user):
-            return str(user).split(' <')[0]
-
-        def user_email(user):
-            email = search('<.*@.*>', str(user))
-            if email is None:
-                return '<%s@%s>' % (user.lower().replace(' ', '.').replace("'", ''), mailSuffix)
-            else:
-                return email.group(0)
-
-        files = []
-        for cs in self.cs_files:
-            files.append(cs.file)
-        # Add files to git
-        for cs in self.cs_files:
-            cs.add(files)
-        self.cache.write()
-        env = os.environ
-        user = users.get(self.user, self.user)
-        env['GIT_AUTHOR_DATE'] = env['GIT_COMMITTER_DATE'] = str(commit_date(self.date))
-        env['GIT_AUTHOR_NAME'] = env['GIT_COMMITTER_NAME'] = user_name(user)
-        env['GIT_AUTHOR_EMAIL'] = env['GIT_COMMITTER_EMAIL'] = str(user_email(user))
-        comment = self.comment if self.comment.strip() != "" else "<empty message>"
-
-        # Commit files to Git
-        try:
-            self.git.commit(comment, env=env)
-
-        except Exception as e:
-            self.error_logger.error('Error: %s' % e)
-            if search('nothing( added)? to commit', e.args[0]) is None:
-                raise
