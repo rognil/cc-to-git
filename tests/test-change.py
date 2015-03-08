@@ -32,6 +32,12 @@ class DirectoryChangeTest(unittest.TestCase):
         print 'Branch %s' % cs.branch
         self.assertTrue(cs.branch == 'main_proj_subproj')
 
+    def test_ignore_to_compl_change(self):
+
+        change = 'cleartool get -to /home/nanne/proj/Tools/Util/inc@@/main/axe/1/Ndb/main/1/NdbApi_V1.H ' \
+                 '/clearcase/proj/Tools/Util/inc@@/main/axe/1/Ndb/main/1/NdbApi_V1.H@@/main/1'
+        print 'Occurenses: %s' % change.count('@@')
+        self.assertTrue(change.count('@@') == 3)
 
 if __name__ == "__main__":
     unittest.main()

@@ -98,7 +98,7 @@ class ChangeSet:
                 cs = cs + '|' + change.to_string()
 
             self.logger.info('Nothing to commit of change set: %s', cs)
-            self.error_logger.info('Nothing to commit of change set: %s', cs)
+
 
 class Change(object):
     def __init__(self, cache, config, clear_case, git, split, comment):
@@ -168,7 +168,10 @@ class Change(object):
             self.clear_case.get_file(to_file_path,
                                      Change.prepare_cc_file(join(ConfigParser.cc_dir(), file_path), version))
         except Exception:
-            if len(file_path) < 200:
+            if file_path.count('@@') > 1:
+                self.logger.debug("Ignoring file '%s' as it is to complex to parse" % file_path)
+                self.error_logger.warn("Ignoring file '%s' as it is to complex to parse" % file_path)
+            elif len(file_path) < 200:
                 self.error_logger.warn('Caught error adding %s' % file_path)
                 raise
             self.logger.debug("Ignoring %s as it may be related to https://github.com/charleso/git-cc/issues/9" %

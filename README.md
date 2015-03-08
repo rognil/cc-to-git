@@ -104,6 +104,16 @@ Branches get flattened, that is branch_a/sub_branch_a/sub_branch_a_b will be a n
 
 All tags will end up on the main branch :(.
 
+
+## Real complex history relations
+
+The solution can't handle uncatalogued changes which are represented like this
+
+    /clearcase/proj/Tools/Util/inc@@/main/axe/1/Ndb/main/1/NdbApi_V1.H@@/main/1
+
+that is having @@ twice.
+
+
 ## Problems
 
 It is worth nothing that when initially importing the history from Clearcase
