@@ -140,7 +140,8 @@ restricted by the same problem, but none-the-less it is most frustrating. Grr!
 
 ## Tested
 
-Notice that this fork only is tested in a Unix (Solaris) environment.
+Notice that this fork is tested in a Unix (Solaris) environment. I imagine it should work in Linux
+and Windows Git Bash as well, but no guarantees....
 
 ## Parts of the original Readme for git-cc by Charles O'Farrell, refactored to match new conditions
 
