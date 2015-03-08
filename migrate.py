@@ -65,6 +65,8 @@ def main(git_cc_dir='.', stash=False, dry_run=False, lshistory=False, load=None)
     since = git.since_date(config.since())
     cache.start()
     if load:
+        if not load.startswith(GitCcConstants.file_separator()):
+            load = join(base_dir, load)
         history = open(load, 'r').read().decode(Encoding.encoding())
     else:
         clear_case.rebase()

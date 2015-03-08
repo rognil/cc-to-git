@@ -168,7 +168,7 @@ class Change(object):
             self.clear_case.get_file(to_file_path,
                                      Change.prepare_cc_file(join(ConfigParser.cc_dir(), file_path), version))
         except Exception:
-            if file_path.count('@@') > 1:
+            if file_path.count('@@') > 0:
                 self.logger.debug("Ignoring file '%s' as it is to complex to parse" % file_path)
                 self.error_logger.warn("Ignoring file '%s' as it is to complex to parse" % file_path)
             elif len(file_path) < 200:

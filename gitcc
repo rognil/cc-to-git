@@ -25,6 +25,26 @@ def main():
     usage()
 
 
+def extract_name(arg):
+    name = arg if not arg.startswith('--') else arg[2:]
+    if name.count('=') > 0:
+        return name.split('=')[0]
+    else:
+        return name
+
+
+def add_parameter(args, name, default):
+        i = 1
+
+        for i in range(len(args)-1):
+            if extract_name(args[i+1]) == name:
+                if args[i+1].count('=') > 0:
+                    return args[i+1].split('=')[1]
+                else:
+                    return True
+        return default
+
+
 def invoke(cmd_name, git_cc_dir, args):
     cmd = __import__(cmd_name)
 
@@ -34,6 +54,7 @@ def invoke(cmd_name, git_cc_dir, args):
     diff = len(_args) - len(defaults)
     _args = _args[diff:]
     parser = OptionParser(description=cmd.__doc__)
+    parameters = []
     for (name, default) in zip(_args, defaults):
         if name == 'git_cc_dir':
             continue
@@ -46,12 +67,8 @@ def invoke(cmd_name, git_cc_dir, args):
             option['action'] = "store"
         name = name.replace('_', '-')
         parser.add_option('--' + name, **option)
+        parameters.append(add_parameter(args, name, default))
 
-    parameters = []
-    for i in range(len(args)-1):
-        parameters.append(args[i+1].split('=')[1])
-
-    (options, args) = parser.parse_args(parameters)
     if len(args) + 1 < diff:
         parser.error("incorrect number of arguments")
 
