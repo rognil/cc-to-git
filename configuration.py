@@ -33,7 +33,7 @@ class ConfigParser():
 
     __git_path = './git'
 
-    __core_section = 'git_cc_core'
+    __core_section = 'core'
 
     # /ClearCase/project
     __cc_cfg = 'clearcase'

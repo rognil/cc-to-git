@@ -1,11 +1,11 @@
-# git-cc for migration
+# cc-to-git for migration
 
-Hi, this branch of git-cc focus on migrating from ClearCase to Git. It is compiled to
+Hi, this fork of git-cc focus on migrating from ClearCase to Git. It is compiled to
 support migration of one ClearCase view with multiple branches into a new Git repository.
 No syncing or updating ClearCase supported, just migration from ClearCase to Git.
 
-The idea on this git-cc branch is to prepare the configuration once and then just run the
-command git-cc migrate to migrate the repository to Git.
+The idea is to prepare the configuration once and then just run the
+command cc-to-git migrate to migrate the repository to Git.
 
 The git tree will be created in a subfolder to the directory you start from.
 
@@ -14,13 +14,17 @@ The git tree will be created in a subfolder to the directory you start from.
 #### Common Configuration
 
 Start with running configure to set up environment, this will create a configuration file
-gitcc.conf in the subfolder conf:
+cc-to-git.conf in the subfolder conf:
 
-    gitcc configure --cc_dir='/clearcase/proj' --git_dir='gitname', --branches='master'
+    cc-to-git configure --cc_dir='/clearcase/proj' --git_dir='gitname', --branches='master'
 
-Or just create the conf/gitcc.conf file.
+or
 
-    [git_cc_core]
+    python cc-to-git configure --cc_dir='/clearcase/proj' --git_dir='gitname', --branches='master'
+
+Or just create the conf/cc-to-git.conf file.
+
+    [core]
     clearcase = /clearcase/proj
     git = /home/username/git-cc/proj
     branches = main|1.1.0|Linux|pgsql|work
@@ -40,7 +44,7 @@ You can choose to exclude a subset of folders
 
 #### User configuration
 
-You need to add a mapping for each user in your clearcase history to conf/users.py, look at the users.py.example file
+You need to add a mapping for each user in your ClearCase history to conf/users.py, look at the users.py.example file
 to get an idea about the syntax.
 
     users = {
@@ -54,7 +58,10 @@ to get an idea about the syntax.
 
 After the configuration is in place run the migration command:
 
-    gitcc migrate
+    cc-to-git migrate
+
+or
+    python cc-to-git migrate
 
 If you end up with problems and you have problems migrating and you believe that the cause of the problem
 is unnecessary to bring along to Git. Then you could just edit the lshistory.bak file created in the conf folder
@@ -62,9 +69,9 @@ and just remove the rows causing the problems. Then you need to load the newly c
 letting the program read from ClearCase. Say that you have named your prepared file lshistory.fixed and placed the
 file in the conf folder, then you just have to execute the following command to use your own adapted history file:
 
-    gitcc migrate --load=conf/lshistory.fixed
+    cc-to-git migrate --load=conf/lshistory.fixed
 
-This will create a subfolder for git, initialize git and mirror the ClearCase view into
+This will create a subfolder for Git, initialize Git and mirror the ClearCase view into
 the newly created Git folder.
 
 ### Add remote hosting
@@ -131,6 +138,9 @@ not a true one and so rolling back to older revisions will be somewhat limited
 as it is likely everything won't compile. Other Clearcase importers seem
 restricted by the same problem, but none-the-less it is most frustrating. Grr!
 
+## Tested
+
+Notice that this fork only is tested in a Unix (Solaris) environment.
 
 ## Parts of the original Readme for git-cc by Charles O'Farrell, refactored to match new conditions
 
