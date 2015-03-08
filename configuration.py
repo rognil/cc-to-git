@@ -132,7 +132,10 @@ class ConfigParser():
         return self._get(self.section, name, *args)
 
     def list(self, name, default=None):
-        return self.get(name, default).split('|')
+        s = self.get(name, default)
+        if s is None:
+            return s
+        return s.split('|')
 
     def branches(self):
         return self.list(ConfigParser.__branches_cfg)

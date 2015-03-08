@@ -18,6 +18,22 @@ class ClearCaseCommon:
         self.encoding = Encoding()
 
     def describe_directory(self, directory):
+        """
+
+        cleartool describe -fmt "%Nd" TOOLS/util@@/main/1
+
+        Outputs a date:
+
+        :param directory: Directory at a given point
+
+        TOOLS/util@@/main/1
+
+        :return: A date is returned on the format
+
+        19980709.133241
+        """
+
+
         return self.__cc_exec(['describe', '-fmt', '%Nd', directory])
 
     def list(self):
@@ -33,6 +49,7 @@ class ClearCaseCommon:
 
     def fetch_history(self, since):
         """ Fetch history branches and labels (tags) included
+
         :param since:
         :return:
         """
@@ -43,6 +60,25 @@ class ClearCaseCommon:
         return self.__cc_exec(lsh)
 
     def diff_directory(self, directory):
+        """
+        Diff a directory
+
+        cleartool diff -diff_format -pred TOOLS/util@@/main/1
+
+        :param directory: Directory at a given point
+
+        TOOLS/util@@/main/1
+
+        :return: A directory at a given point
+
+        -----[ added ]-----
+        > mkdefs.hp  1995-10-11 nisse
+        -----[ added ]-----
+        > mkdefs.sol2  1995-10-11 nisse
+        -----[ added ]-----
+        > mkdefs.sun4  1995-06-06 nisse
+
+        """
         return self.__cc_exec(['diff', '-diff_format', '-pred', directory], errors=False)
 
     def make_label(self, label, file_name, replace=False):

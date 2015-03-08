@@ -8,7 +8,7 @@ from git import Git
 from fileio import IO
 from configuration import ConfigParser
 from encoding import Encoding
-from changeset import Change, Uncataloged, Branch, Tag, ChangeSet
+from changeset import Change, Uncatalogued, Branch, Tag, ChangeSet
 from constants import GitCcConstants
 
 import logging
@@ -127,7 +127,7 @@ def parse_history(cache, config, clear_case, git, lines):
 
     types = {
         'checkinversion': Change,
-        'checkindirectory version': Uncataloged,
+        'checkindirectory version': Uncatalogued,
         'mkbranchbranch': Branch,
         'mktypelabel type': Tag,
     }
@@ -142,7 +142,7 @@ def parse_history(cache, config, clear_case, git, lines):
             cs = types[cs_type](_cache, _config, _clear_case, _git, _split, _comment)
             try:
                 if cs_type != 'mktypelabel type':
-                    branch = cs.filter_branches(_config, cs)
+                    branch = cs.filter_branches(_config, cs.version, cs.branch)
                     logger.debug('Parse history %s to branch %s', cs.to_string(), branch)
                     if branch is not None:
                         logger.info('Append change set: %s', cs.to_string())

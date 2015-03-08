@@ -34,9 +34,13 @@ class ChangeSet:
         self.change_sets.append(change)
         self.branch = change.branch
 
-    def append(self, cs):
-        self.date = cs.date
-        self.change_sets.append(cs)
+    def append(self, change):
+        """
+        :param change: A change in ClearCase
+        :return:
+        """
+        self.date = change.date
+        self.change_sets.append(change)
 
     def changes(self):
         return self.change_sets
@@ -61,28 +65,40 @@ class ChangeSet:
                 return email.group(0)
 
         files = []
-        for cs in self.change_sets:
-            files.append(cs.file)
+        for change in self.change_sets:
+            files.append(change.file)
         # Add files to git
-        for cs in self.change_sets:
-            cs.add(files)
+        files_added = False
+        for change in self.change_sets:
+            change.add(files)
+            if (change.added_to_git()):
+                files_added = True
+
         self.cache.write()
-        env = os.environ
-        user = users.get(self.user, self.user)
-        env['GIT_AUTHOR_DATE'] = env['GIT_COMMITTER_DATE'] = str(commit_date(self.date))
-        env['GIT_AUTHOR_NAME'] = env['GIT_COMMITTER_NAME'] = user_name(user)
-        env['GIT_AUTHOR_EMAIL'] = env['GIT_COMMITTER_EMAIL'] = str(user_email(user))
-        comment = self.comment if self.comment.strip() != "" else "<empty message>"
 
-        # Commit files to Git
-        try:
-            self.git.commit(comment, env=env)
+        if files_added:
+            env = os.environ
+            user = users.get(self.user, self.user)
+            env['GIT_AUTHOR_DATE'] = env['GIT_COMMITTER_DATE'] = str(commit_date(self.date))
+            env['GIT_AUTHOR_NAME'] = env['GIT_COMMITTER_NAME'] = user_name(user)
+            env['GIT_AUTHOR_EMAIL'] = env['GIT_COMMITTER_EMAIL'] = str(user_email(user))
+            comment = self.comment if self.comment.strip() != "" else "<empty message>"
 
-        except Exception as e:
-            self.error_logger.error('Error: %s' % e)
-            if search('nothing( added)? to commit', e.args[0]) is None:
-                raise
+            # Commit files to Git
+            try:
+                self.git.commit(comment, env=env)
 
+            except Exception as e:
+                self.error_logger.error('Error: %s' % e)
+                if search('nothing( added)? to commit', e.args[0]) is None:
+                    raise
+        else:
+            cs = ''
+            for change in self.change_sets:
+                cs = cs + '|' + change.to_string()
+
+            self.logger.info('Nothing to commit of change set: %s', cs)
+            self.error_logger.info('Nothing to commit of change set: %s', cs)
 
 class Change(object):
     def __init__(self, cache, config, clear_case, git, split, comment):
@@ -90,6 +106,7 @@ class Change(object):
         self.config = config
         self.clear_case = clear_case
         self.git = git
+        self.added = False
 
         self.logger = logging.getLogger(__name__)
         self.error_logger = logging.getLogger("error")
@@ -123,6 +140,9 @@ class Change(object):
         last = version.rfind(GitCcConstants.version_delimiter())
         b = version[1:last].replace(GitCcConstants.version_delimiter(), '_')
         return b if not b == 'main' else 'master'
+
+    def added_to_git(self):
+        return self.added
 
     def to_string(self):
         return "User=%s, Version=%s, File=%s, branch %s" % (self.user, self.version, self.file, self.branch)
@@ -159,31 +179,32 @@ class Change(object):
             os.chmod(to_file_path, os.stat(to_file_path).st_mode | stat.S_IWRITE)
         self.logger.debug("Add file %s" % file_path)
         self.git.force_add(file_path)
+        self.added = True
 
     @staticmethod
     def prepare_cc_file(file_path, version):
         return '%s@@%s' % (file_path, version)
 
-    def filter_branches(self, config, cs, complete=False):
-        version = cs.version.split(GitCcConstants.version_delimiter())
+    def filter_branches(self, config, version, branch, complete=False):
+        version = version.split(GitCcConstants.version_delimiter())
         self.logger.debug('Version: %s, %s', version, complete)
         version.pop()
         self.logger.debug('Version: %s', version)
         version = version[-1]
         branches = config.branches()
-        if complete:
+        if complete and branches is not None and config.extra_branches() is not None:
             branches.extend(config.extra_branches())
-        for branch in branches:
-            if fnmatch(version, branch):
+        for b in branches:
+            if fnmatch(version, b):
                 self.logger.debug('Branch match: %s, %s', version, complete)
-                if branch == 'main':
+                if b == 'main':
                     return 'master'
-                return cs.branch
+                return branch
         self.logger.debug('Branch skip: %s, %s', version, complete)
         return None
 
 
-class Uncataloged(Change):
+class Uncatalogued(Change):
 
     def __init__(self, cache, config, clear_case, git, split, comment):
         Change.__init__(self, cache, config, clear_case, git, split, comment)
@@ -247,8 +268,11 @@ class Uncataloged(Change):
         return self.filter_versions(versions, lambda x: x[0] == 'mkelemversion')
 
     def filter_versions_by_type(self, versions, kind):
+
         def f(s):
-            return s[0] == kind and self.filter_branches(self.config, s[2], True) is not None
+            self.logger.debug("Kind '%s', versions '%s'" % (kind, s))
+
+            return s[0] == kind and self.filter_branches(self.config, s[2], self.branch, True) is not None
 
         return self.filter_versions(versions, f)
 
