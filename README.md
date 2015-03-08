@@ -56,6 +56,14 @@ After the configuration is in place run the migration command:
 
     gitcc migrate
 
+If you end up with problems and you have problems migrating and you believe that the cause of the problem
+is unnecessary to bring along to Git. Then you could just edit the lshistory.bak file created in the conf folder
+and just remove the rows causing the problems. Then you need to load the newly created file instead of
+letting the program read from ClearCase. Say that you have named your prepared file lshistory.fixed and placed the
+file in the conf folder, then you just have to execute the following command to use your own adapted history file:
+
+    gitcc migrate --load=conf/lshistory.fixed
+
 This will create a subfolder for git, initialize git and mirror the ClearCase view into
 the newly created Git folder.
 
