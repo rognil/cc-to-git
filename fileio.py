@@ -50,4 +50,4 @@ class IO():
         if exists(path):
             os.chdir(path)
         else:
-            fail('Path %s is missing!', path)
+            fail('Path ' + path + ' is missing!')
