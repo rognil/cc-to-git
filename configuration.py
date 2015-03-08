@@ -53,7 +53,7 @@ class ConfigParser():
 
     __exclude_cfg = 'exclude'
 
-    __conf_file = 'conf/gitcc.conf'
+    __conf_file = 'conf/cc-to-git.conf'
     __debug = constants.GitCcConstants().debug()
 
     __lock = Lock()

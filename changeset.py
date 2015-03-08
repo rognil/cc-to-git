@@ -249,7 +249,7 @@ class Uncatalogued(Change):
                                      (added, versions, actual_versions))
                 if not versions:
                     self.logger.warn("It appears that you may be missing a branch "
-                                     "in the includes section of your gitcc config for file '%s'. Actual V: %s"
+                                     "in the includes section of your cc-to-git config for file '%s'. Actual V: %s"
                                      % (added, actual_versions))
                     continue
                 self._add(added, versions[0][2].strip())

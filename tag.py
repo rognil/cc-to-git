@@ -1,4 +1,4 @@
-"""Tag a particular commit as gitcc start point"""
+"""Tag a particular commit as cc-to-git start point"""
 
 from configuration import ConfigParser
 from git import Git

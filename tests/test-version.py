@@ -4,7 +4,7 @@ import unittest
 import os
 
 from os.path import join
-from gitcclogger import GitCcLogger
+from cctogitlogger import CcToGitLogger
 from constants import GitCcConstants
 
 
@@ -13,7 +13,7 @@ class VersionTest(unittest.TestCase):
     def test_version(self):
 
         path = os.getcwd().split(GitCcConstants.file_separator())
-        GitCcLogger(join(GitCcConstants.file_separator().join(path),
+        CcToGitLogger(join(GitCcConstants.file_separator().join(path),
                          GitCcConstants.conf_dir(), GitCcConstants.logger_conf_name()))
 
         _git = __import__('git')

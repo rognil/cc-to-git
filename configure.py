@@ -1,4 +1,4 @@
-"""Configure gitcc by creating a config file
+"""Configure cc-to-git by creating a config file
 based on input, ClearCase directory and branch info
 """
 

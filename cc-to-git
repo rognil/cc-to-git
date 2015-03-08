@@ -3,7 +3,7 @@ import sys
 import inspect
 from optparse import OptionParser
 
-from gitcclogger import GitCcLogger
+from cctogitlogger import CcToGitLogger
 from constants import GitCcConstants
 from os.path import join
 import os
@@ -16,7 +16,7 @@ commands = [
 def main():
 
     path = os.getcwd().split(GitCcConstants.file_separator())
-    GitCcLogger(join(GitCcConstants.file_separator().join(path), GitCcConstants.conf_dir(), GitCcConstants.logger_conf_name()))
+    CcToGitLogger(join(GitCcConstants.file_separator().join(path), GitCcConstants.conf_dir(), GitCcConstants.logger_conf_name()))
 
     args = sys.argv[1:]
     for cmd in commands:
@@ -76,7 +76,7 @@ def invoke(cmd_name, git_cc_dir, args):
 
 
 def usage():
-    print('\nusage: gitcc COMMAND [ARGS]\n')
+    print('\nusage: cc-to-git COMMAND [ARGS]\n')
     width = 11
     for cmd_name in commands:
         cmd = __import__(cmd_name)

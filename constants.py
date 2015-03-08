@@ -8,7 +8,7 @@ import os
 class GitCcConstants:
 
     __default_config_dir = "conf"
-    __default_config_file = 'gitcc.conf'
+    __default_config_file = 'cc-to-git.conf'
     __default_logger_config = "logging.conf"
     __default_logger_level = logging.DEBUG
     __default_encoding = "ISO8859-15"
@@ -19,7 +19,7 @@ class GitCcConstants:
 
     __history_file = "lshistory.bak"
 
-    __gitcc_file = '.gitcc'
+    __cc_to_git_file = '.cc-to-git'
     __git_repository_name = '.git'
 
     __simulate_cc = 0
@@ -58,8 +58,8 @@ class GitCcConstants:
         return GitCcConstants.__default_attribute_delimiter
 
     @staticmethod
-    def gitcc_file():
-        return GitCcConstants.__gitcc_file
+    def cc_to_git_file():
+        return GitCcConstants.__cc_to_git_file
 
     @staticmethod
     def git_repository_name():

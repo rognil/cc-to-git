@@ -7,14 +7,14 @@ import logging.config
 from threading import Lock
 
 
-class GitCcLogger(object):
+class CcToGitLogger(object):
     __loggerLock = Lock()
     __initialized = False
 
     def __init__(self, log_conf_file='logging.conf'):
-        GitCcLogger.__loggerLock.acquire()
-        if not GitCcLogger.__initialized:
+        CcToGitLogger.__loggerLock.acquire()
+        if not CcToGitLogger.__initialized:
             logging.config.fileConfig(log_conf_file)
             print '\nInitialized logging'
-            GitCcLogger.__initialized = True
-        GitCcLogger.__loggerLock.release()
+            CcToGitLogger.__initialized = True
+        CcToGitLogger.__loggerLock.release()

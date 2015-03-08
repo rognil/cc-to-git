@@ -1,4 +1,4 @@
-"""Initialise gitcc with a clearcase directory"""
+"""Initialise cc-to-git with a clearcase directory"""
 
 from git import Git
 from configuration import ConfigParser

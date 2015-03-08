@@ -20,7 +20,7 @@ class Cache(object):
         self.constants = GitCcConstants()
         self.git = Git()
         self.dir = base_dir
-        self.cache_file_name = join(base_dir, self.constants.conf_dir(), self.constants.gitcc_file())
+        self.cache_file_name = join(base_dir, self.constants.conf_dir(), self.constants.cc_to_git_file())
         self.empty = CCBranch('/main/0')
 
     def start(self):
