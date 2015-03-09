@@ -163,6 +163,7 @@ class Change(object):
         to_file_path = self.config.path(join(ConfigParser.git_path(), file_path))
         IO.make_directories(to_file_path)
         IO.remove_file(to_file_path)
+        ignore_complex = False
         try:
             # Checkout ClearCase file
             self.clear_case.get_file(to_file_path,
@@ -171,18 +172,20 @@ class Change(object):
             if file_path.count('@@') > 0:
                 self.logger.debug("Ignoring file '%s' as it is to complex to parse" % file_path)
                 self.error_logger.warn("Ignoring file '%s' as it is to complex to parse" % file_path)
+                ignore_complex = True
             elif len(file_path) < 200:
                 self.error_logger.warn('Caught error adding %s' % file_path)
                 raise
             self.logger.debug("Ignoring %s as it may be related to https://github.com/charleso/git-cc/issues/9" %
                               file_path)
-        if not exists(to_file_path):
-            self.git.check_out_file(to_file_path)
-        else:
-            os.chmod(to_file_path, os.stat(to_file_path).st_mode | stat.S_IWRITE)
-        self.logger.debug("Add file %s" % file_path)
-        self.git.force_add(file_path)
-        self.added = True
+        if not ignore_complex:
+            if not exists(to_file_path):
+                self.git.check_out_file(to_file_path)
+            else:
+                os.chmod(to_file_path, os.stat(to_file_path).st_mode | stat.S_IWRITE)
+            self.logger.debug("Add file %s" % file_path)
+            self.git.force_add(file_path)
+            self.added = True
 
     @staticmethod
     def prepare_cc_file(file_path, version):
